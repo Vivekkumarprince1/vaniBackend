@@ -63,6 +63,11 @@ const connectDB = async () => {
   }
 }
 
+// Add health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
@@ -450,17 +455,28 @@ io.on('connection', async (socket) => {
 // Server startup
 const PORT = process.env.PORT || 2000;
 
-// Connect to database and start server
-connectDB()
-  .then(() => {
-    server.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
-      console.log(`Access it at http://localhost:${PORT}`);
+if (process.env.NODE_ENV !== 'production') {
+  // Only create HTTP server in development
+  connectDB()
+    .then(() => {
+      server.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        console.log(`Access it at http://localhost:${PORT}`);
+      });
+    })
+    .catch(err => {
+      console.error('Failed to connect to MongoDB:', err);
     });
-  })
-  .catch(err => {
-    console.error('Failed to connect to MongoDB:', err);
-  });
+} else {
+  // In production, just connect to DB
+  connectDB()
+    .then(() => {
+      console.log('Production server connected to MongoDB');
+    })
+    .catch(err => {
+      console.error('Failed to connect to MongoDB:', err);
+    });
+}
 
-// Only export app for testing or other uses if needed
-module.exports = app;
+// Export for Vercel
+module.exports = server;

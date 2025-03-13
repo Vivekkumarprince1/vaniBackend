@@ -69,6 +69,23 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
 
+// Add timeout middleware
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    res.status(504).json({ error: 'Request timeout' });
+  });
+  next();
+});
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    code: err.code || 'INTERNAL_ERROR',
+    message: err.message || 'Internal server error'
+  });
+});
+
 // Database connection
 const connectDB = async () => {
   try {
@@ -473,6 +490,8 @@ const PORT = process.env.PORT || 2000;
 const startServer = async () => {
   try {
     await connectDB();
+    server.timeout = 60000; // Set server timeout to 60 seconds
+    server.keepAliveTimeout = 65000; // Slightly higher than timeout
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log('Environment:', process.env.NODE_ENV);
@@ -484,9 +503,8 @@ const startServer = async () => {
   }
 };
 
-if (process.env.NODE_ENV !== 'production') {
-  startServer();
-}
+// Always start server regardless of environment
+startServer();
 
 // Export for Vercel
 module.exports = server;

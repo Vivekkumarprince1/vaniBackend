@@ -49,13 +49,19 @@ const corsOptions = {
     optionsSuccessStatus: 204
 };
 
-// Apply CORS before any other middleware
+// Initialize Socket.IO before using it
+const io = socketIo(server, { 
+    cors: {
+        origin: allowedOrigins,
+        methods: ['GET', 'POST'],
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+    }
+});
+
+// Apply CORS and other middleware
 app.use(cors(corsOptions));
-
-// Handle OPTIONS requests explicitly
 app.options('*', cors(corsOptions));
-
-// Middleware
 app.use(express.json());
 
 // Database connection
@@ -68,17 +74,11 @@ const connectDB = async () => {
   }
 }
 
-// Add health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
+// Store active users and their rooms
+const users = {};
+const rooms = {};
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/chat', require('./routes/chat'));
-app.use('/api/translator', translatorRoutes);
-
-// Socket.IO middleware for authentication
+// Socket.IO middleware and event handlers
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   
@@ -98,11 +98,6 @@ io.use((socket, next) => {
   }
 });
 
-// Store active users and their rooms
-const users = {};
-const rooms = {};
-
-// WebSocket
 io.on('connection', async (socket) => {
   console.log('New client connected:', socket.id);
   
@@ -457,31 +452,33 @@ io.on('connection', async (socket) => {
   });
 });
 
+// Routes (after Socket.IO initialization)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/chat', require('./routes/chat'));
+app.use('/api/translator', translatorRoutes);
+
 // Server startup
 const PORT = process.env.PORT || 2000;
 
-if (process.env.NODE_ENV !== 'production') {
-  // Only create HTTP server in development
-  connectDB()
-    .then(() => {
-      server.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+// Start server for both development and production
+connectDB()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+      if (process.env.NODE_ENV !== 'production') {
         console.log(`Access it at http://localhost:${PORT}`);
-      });
-    })
-    .catch(err => {
-      console.error('Failed to connect to MongoDB:', err);
+      } else {
+        console.log('Production server started');
+      }
     });
-} else {
-  // In production, just connect to DB
-  connectDB()
-    .then(() => {
-      console.log('Production server connected to MongoDB');
-    })
-    .catch(err => {
-      console.error('Failed to connect to MongoDB:', err);
-    });
-}
+  })
+  .catch(err => {
+    console.error('Failed to connect to MongoDB:', err);
+  });
 
 // Export for Vercel
 module.exports = server;

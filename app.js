@@ -49,14 +49,19 @@ const corsOptions = {
     optionsSuccessStatus: 204
 };
 
-// Initialize Socket.IO before using it
+// Initialize Socket.IO with production settings
 const io = socketIo(server, { 
     cors: {
-        origin: allowedOrigins,
-        methods: ['GET', 'POST'],
+        origin: process.env.NODE_ENV === 'production'
+            ? [/\.vercel\.app$/, 'https://vani-frontend.vercel.app', 'https://vani.vercel.app']
+            : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5001'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         credentials: true,
         allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
-    }
+    },
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000
 });
 
 // Apply CORS and other middleware
@@ -464,21 +469,24 @@ app.use('/api/translator', translatorRoutes);
 // Server startup
 const PORT = process.env.PORT || 2000;
 
-// Start server for both development and production
-connectDB()
-  .then(() => {
+// Start server with proper error handling
+const startServer = async () => {
+  try {
+    await connectDB();
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`Access it at http://localhost:${PORT}`);
-      } else {
-        console.log('Production server started');
-      }
+      console.log('Environment:', process.env.NODE_ENV);
+      console.log('MongoDB Connected');
     });
-  })
-  .catch(err => {
-    console.error('Failed to connect to MongoDB:', err);
-  });
+  } catch (error) {
+    console.error('Server startup error:', error);
+    process.exit(1);
+  }
+};
+
+if (process.env.NODE_ENV !== 'production') {
+  startServer();
+}
 
 // Export for Vercel
 module.exports = server;

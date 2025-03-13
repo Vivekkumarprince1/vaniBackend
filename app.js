@@ -24,13 +24,18 @@ console.log('Azure Translator Key:', process.env.AZURE_TRANSLATOR_KEY ? '****' +
 
 const app = express();
 const server = http.createServer(app);
+
+// Update allowed origins to include all Vercel domains
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://vani.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app'] 
+    ? [/\.vercel\.app$/, 'https://vani-frontend.vercel.app']
     : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5001', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
 
 const corsOptions = {
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || 
+            allowedOrigins.some(allowed => 
+                allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
+            )) {
             callback(null, true);
         } else {
             console.error('Origin not allowed:', origin);
@@ -39,17 +44,17 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
 };
 
-const io = socketIo(server, { 
-    cors: {
-        origin: allowedOrigins,
-        methods: ['GET', 'POST'],
-        credentials: true
-    }
-});
+// Apply CORS before any other middleware
 app.use(cors(corsOptions));
+
+// Handle OPTIONS requests explicitly
+app.options('*', cors(corsOptions));
+
 // Middleware
 app.use(express.json());
 

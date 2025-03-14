@@ -8,26 +8,17 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "app.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-auth-token",
-        "Access-Control-Allow-Credentials": "true"
-      },
-      "continue": true
-    },
-    {
       "src": "/(.*)",
       "dest": "app.js"
     }
   ],
-  "regions": ["lhr1"],
-  "functions": {
-    "app.js": {
-      "memory": 3008,
-      "maxDuration": 60
-    }
+  "env": {
+    "MONGO_URI": "@mongo_uri",
+    "JWT_SECRET": "@jwt_secret",
+    "AZURE_TRANSLATOR_KEY": "@azure_translator_key",
+    "AZURE_TRANSLATOR_REGION": "@azure_translator_region",
+    "AZURE_TRANSLATOR_ENDPOINT": "@azure_translator_endpoint",
+    "AZURE_SPEECH_KEY": "@azure_speech_key",
+    "AZURE_SPEECH_REGION": "@azure_speech_region"
   }
 }

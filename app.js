@@ -10,7 +10,6 @@ const User = require('./models/User');
 const { translateText } = require('./utils/translator');
 const translatorRoutes = require('./routes/translator');
 const { translateSpeech } = require('./utils/speechTranslator');
-const rateLimit = require('express-rate-limit');
 
 // Load environment variables
 dotenv.config();
@@ -25,18 +24,13 @@ console.log('Azure Translator Key:', process.env.AZURE_TRANSLATOR_KEY ? '****' +
 
 const app = express();
 const server = http.createServer(app);
-
-// Update allowed origins to include all Vercel domains
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [/\.vercel\.app$/, 'https://vani-frontend.vercel.app']
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5001', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
+    ? ['https://vani.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app', 'https://vani-frontend.vercel.app'] 
+    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
 
 const corsOptions = {
     origin: (origin, callback) => {
-        if (!origin || 
-            allowedOrigins.some(allowed => 
-                allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
-            )) {
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             console.error('Origin not allowed:', origin);
@@ -45,51 +39,19 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 };
 
-// Initialize Socket.IO with production settings
 const io = socketIo(server, { 
     cors: {
-        origin: process.env.NODE_ENV === 'production'
-            ? [/\.vercel\.app$/, 'https://vani-frontend.vercel.app', 'https://vani.vercel.app']
-            : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5001'],
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        credentials: true,
-        allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
-    },
-    transports: ['websocket', 'polling'],
-    pingTimeout: 60000,
-    pingInterval: 25000
+        origin: allowedOrigins,
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
 });
-
-// Add rate limiting only in production
-if (process.env.NODE_ENV === 'production') {
-  const rateLimit = require('express-rate-limit');
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
-  });
-  app.use('/api/', limiter);
-}
-
-// Apply CORS early
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
-// Basic middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-// Add timeout middleware
-app.use((req, res, next) => {
-  res.setTimeout(30000, () => {
-    res.status(504).json({ error: 'Request timeout' });
-  });
-  next();
-});
+// Middleware
+app.use(express.json());
 
 // Database connection
 const connectDB = async () => {
@@ -101,11 +63,12 @@ const connectDB = async () => {
   }
 }
 
-// Store active users and their rooms
-const users = {};
-const rooms = {};
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/chat', require('./routes/chat'));
+app.use('/api/translator', translatorRoutes);
 
-// Socket.IO middleware and event handlers
+// Socket.IO middleware for authentication
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   
@@ -125,6 +88,11 @@ io.use((socket, next) => {
   }
 });
 
+// Store active users and their rooms
+const users = {};
+const rooms = {};
+
+// WebSocket
 io.on('connection', async (socket) => {
   console.log('New client connected:', socket.id);
   
@@ -479,62 +447,20 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Routes (after Socket.IO initialization)
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/chat', require('./routes/chat'));
-app.use('/api/translator', translatorRoutes);
-
-// Error handling middleware (must be after routes)
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal server error'
-  });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Not found' });
-});
-
 // Server startup
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 2000;
 
-// Start server with proper error handling
-const startServer = async () => {
-  try {
-    await connectDB();
-    server.timeout = 60000; // Set server timeout to 60 seconds
-    server.keepAliveTimeout = 65000; // Slightly higher than timeout
+// Connect to database and start server
+connectDB()
+  .then(() => {
     server.listen(PORT, () => {
-      console.log(`Server is running on port http://localhost:${PORT}`);
-      console.log('Environment:', process.env.NODE_ENV);
-      console.log('MongoDB Connected');
+            console.log(`Server is running on port ${PORT}`);
+      console.log(`Access it at http://localhost:${PORT}`);
     });
-  } catch (error) {
-    console.error('Server startup error:', error);
-    process.exit(1);
-  }
-};
-
-// Always start server regardless of environment
-startServer();
-
-// Connect to MongoDB immediately for Vercel
-connectDB();
-
-// Export the Express app for Vercel
-module.exports = app;
-
-// Only start server in development
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5001;
-  server.listen(PORT, () => {
-    console.log(`Development server running on http://localhost:${PORT}`);
+  })
+  .catch(err => {
+    console.error('Failed to connect to MongoDB:', err);
   });
-}
+
+// Only export app for testing or other uses if needed
+module.exports = app;

@@ -525,5 +525,16 @@ const startServer = async () => {
 // Always start server regardless of environment
 startServer();
 
-// Export for Vercel
-module.exports = server;
+// Connect to MongoDB immediately for Vercel
+connectDB();
+
+// Export the Express app for Vercel
+module.exports = app;
+
+// Only start server in development
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5001;
+  server.listen(PORT, () => {
+    console.log(`Development server running on http://localhost:${PORT}`);
+  });
+}

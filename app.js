@@ -10,6 +10,7 @@ const User = require('./models/User');
 const { translateText } = require('./utils/translator');
 const translatorRoutes = require('./routes/translator');
 const { translateSpeech } = require('./utils/speechTranslator');
+const rateLimit = require('express-rate-limit');
 
 // Load environment variables
 dotenv.config();
@@ -64,10 +65,22 @@ const io = socketIo(server, {
     pingInterval: 25000
 });
 
-// Apply CORS and other middleware
+// Apply CORS early
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-app.use(express.json());
+
+// Rate limiting configuration
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+// Apply rate limiter
+app.use('/api/', limiter);
+
+// Basic middleware
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Add timeout middleware
 app.use((req, res, next) => {
@@ -75,15 +88,6 @@ app.use((req, res, next) => {
     res.status(504).json({ error: 'Request timeout' });
   });
   next();
-});
-
-// Add error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    code: err.code || 'INTERNAL_ERROR',
-    message: err.message || 'Internal server error'
-  });
 });
 
 // Database connection
@@ -482,6 +486,20 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/translator', translatorRoutes);
+
+// Error handling middleware (must be after routes)
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error'
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Not found' });
+});
 
 // Server startup
 const PORT = process.env.PORT || 2000;

@@ -8,29 +8,25 @@
   ],
   "routes": [
     {
-      "src": "/socket.io/(.*)",
+      "src": "/api/(.*)",
       "dest": "app.js",
       "headers": {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-auth-token",
+        "Access-Control-Allow-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-auth-token",
         "Access-Control-Allow-Credentials": "true"
-      }
+      },
+      "continue": true
     },
     {
       "src": "/(.*)",
-      "dest": "app.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-auth-token",
-        "Access-Control-Allow-Credentials": "true"
-      }
+      "dest": "app.js"
     }
   ],
+  "regions": ["lhr1"],
   "functions": {
     "app.js": {
-      "memory": 1024,
+      "memory": 3008,
       "maxDuration": 60
     }
   }

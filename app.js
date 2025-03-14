@@ -65,18 +65,19 @@ const io = socketIo(server, {
     pingInterval: 25000
 });
 
+// Add rate limiting only in production
+if (process.env.NODE_ENV === 'production') {
+  const rateLimit = require('express-rate-limit');
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+  });
+  app.use('/api/', limiter);
+}
+
 // Apply CORS early
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-
-// Rate limiting configuration
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-
-// Apply rate limiter
-app.use('/api/', limiter);
 
 // Basic middleware
 app.use(express.json({ limit: '50mb' }));
@@ -502,7 +503,7 @@ app.use((req, res) => {
 });
 
 // Server startup
-const PORT = process.env.PORT || 2000;
+const PORT = process.env.PORT || 5001;
 
 // Start server with proper error handling
 const startServer = async () => {
@@ -511,7 +512,7 @@ const startServer = async () => {
     server.timeout = 60000; // Set server timeout to 60 seconds
     server.keepAliveTimeout = 65000; // Slightly higher than timeout
     server.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+      console.log(`Server is running on port http://localhost:${PORT}`);
       console.log('Environment:', process.env.NODE_ENV);
       console.log('MongoDB Connected');
     });

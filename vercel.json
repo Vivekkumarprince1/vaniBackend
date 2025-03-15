@@ -13,12 +13,12 @@
     }
   ],
   "env": {
-    "MONGO_URI": "@mongo_uri",
-    "JWT_SECRET": "@jwt_secret",
-    "AZURE_TRANSLATOR_KEY": "@azure_translator_key",
-    "AZURE_TRANSLATOR_REGION": "@azure_translator_region",
-    "AZURE_TRANSLATOR_ENDPOINT": "@azure_translator_endpoint",
-    "AZURE_SPEECH_KEY": "@azure_speech_key",
-    "AZURE_SPEECH_REGION": "@azure_speech_region"
+    "MONGO_URI": "mongodb+srv://thevivek151:Prince1%40@cluster0.t9kw5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    "JWT_SECRET": "your-jwt-secret",
+    "AZURE_TRANSLATOR_KEY": "A7tATAM0ei1DAO8zvBUXyjVs42r0kYQ1EFozVSDlEYtsEHsXP5LsJQQJ99BCACGhslBXJ3w3AAAbACOGBUIP",
+    "AZURE_TRANSLATOR_REGION": "centralindia",
+    "AZURE_TRANSLATOR_ENDPOINT": "https://api.cognitive.microsofttranslator.com/",
+    "AZURE_SPEECH_KEY": "your-azure-speech-key",
+    "AZURE_SPEECH_REGION": "centralindia"
   }
 }

@@ -25,8 +25,8 @@ console.log('Azure Translator Key:', process.env.AZURE_TRANSLATOR_KEY ? '****' +
 const app = express();
 const server = http.createServer(app);
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://vani.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app', 'https://vani-frontend.vercel.app'] 
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
+    ? ['https://vani-frontend.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app'] 
+    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000'];
 
 const corsOptions = {
     origin: (origin, callback) => {

@@ -25,31 +25,20 @@ console.log('Azure Translator Key:', process.env.AZURE_TRANSLATOR_KEY ? '****' +
 const app = express();
 const server = http.createServer(app);
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://vani-frontend.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app'] 
+    ? ['https://vani-frontend.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app', 'https://vani.vercel.app'] 
     : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000'];
 
 const corsOptions = {
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            console.error('Origin not allowed:', origin);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: allowedOrigins,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Origin', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 600
 };
 
-const io = socketIo(server, { 
-    cors: {
-        origin: allowedOrigins,
-        methods: ['GET', 'POST'],
-        credentials: true
-    }
-});
 app.use(cors(corsOptions));
+
 // Middleware
 app.use(express.json());
 
@@ -67,6 +56,11 @@ const connectDB = async () => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/translator', translatorRoutes);
+
+// Update Socket.IO CORS config
+const io = socketIo(server, { 
+    cors: corsOptions
+});
 
 // Socket.IO middleware for authentication
 io.use((socket, next) => {

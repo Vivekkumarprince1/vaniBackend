@@ -24,45 +24,48 @@ console.log('Azure Translator Key:', process.env.AZURE_TRANSLATOR_KEY ? '****' +
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://vani.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app'] 
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
 
-const corsOptions = {
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            console.error('Origin not allowed:', origin);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+// Updated allowed origins
+const allowedOrigins = [
+  'https://vani-frontend.vercel.app',
+  'https://vani.vercel.app',
+  'https://vani-git-main-vivekkumar.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:5174'
+];
+
+// Single CORS configuration for both Express and Socket.IO
+const corsConfig = {
+  origin: 'https://vani-frontend.vercel.app',
+  credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'X-CSRF-Token',
+    'X-Requested-With',
+    'Accept',
+    'Accept-Version',
+    'Content-Length',
+    'Content-MD5',
+    'Content-Type',
+    'Date',
+    'X-Api-Version',
+    'Authorization',
+    'x-auth-token',
+    'Origin'
+  ],
+  maxAge: 86400
 };
 
-const io = socketIo(server, { 
-    cors: {
-        origin: allowedOrigins,
-        methods: ['GET', 'POST'],
-        credentials: true
-    }
+// Initialize Socket.IO with CORS config
+const io = socketIo(server, {
+  cors: corsConfig
 });
-app.use(cors(corsOptions));
 
-// CORS middleware configuration
-app.use(cors({
-  origin: 'https://vani-frontend.vercel.app',
-  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['X-CSRF-Token', 'X-Requested-With', 'Accept', 'Accept-Version', 'Content-Length', 'Content-MD5', 'Content-Type', 'Date', 'X-Api-Version', 'Authorization', 'x-auth-token', 'Origin'],
-  credentials: true,
-  maxAge: 86400
-}));
+// Apply CORS middleware to Express
+app.use(cors(corsConfig));
 
-// Add OPTIONS handling for preflight requests
-app.options('*', cors());
-
+// Pre-flight requests
+app.options('*', cors(corsConfig));
 
 // Middleware
 app.use(express.json());

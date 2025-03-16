@@ -6,21 +6,9 @@
       "use": "@vercel/node"
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app.js"
-    }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/app.js" }
   ],
-  "env": {
-    "MONGO_URI": "mongodb+srv://thevivek151:Prince1%40@cluster0.t9kw5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-    "JWT_SECRET": "your-jwt-secret",
-    "AZURE_TRANSLATOR_KEY": "A7tATAM0ei1DAO8zvBUXyjVs42r0kYQ1EFozVSDlEYtsEHsXP5LsJQQJ99BCACGhslBXJ3w3AAAbACOGBUIP",
-    "AZURE_TRANSLATOR_REGION": "centralindia",
-    "AZURE_TRANSLATOR_ENDPOINT": "https://api.cognitive.microsofttranslator.com/",
-    "AZURE_SPEECH_KEY": "your-azure-speech-key",
-    "AZURE_SPEECH_REGION": "centralindia"
-  },
   "headers": [
     {
       "source": "/api/(.*)",
@@ -31,5 +19,14 @@
         { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-auth-token, Origin" }
       ]
     }
-  ]
+  ],
+  "env": {
+    "MONGO_URI": "mongodb+srv://thevivek151:Prince1%40@cluster0.t9kw5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    "JWT_SECRET": "your-jwt-secret",
+    "AZURE_TRANSLATOR_KEY": "A7tATAM0ei1DAO8zvBUXyjVs42r0kYQ1EFozVSDlEYtsEHsXP5LsJQQJ99BCACGhslBXJ3w3AAAbACOGBUIP",
+    "AZURE_TRANSLATOR_REGION": "centralindia",
+    "AZURE_TRANSLATOR_ENDPOINT": "https://api.cognitive.microsofttranslator.com/",
+    "AZURE_SPEECH_KEY": "your-azure-speech-key",
+    "AZURE_SPEECH_REGION": "centralindia"
+  }
 }

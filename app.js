@@ -83,20 +83,24 @@ const corsConfig = {
 
 // Initialize Socket.IO with updated config
 const io = socketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
-    allowedHeaders: corsConfig.allowedHeaders
-  },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true,
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 30000,
-  agent: false,
   path: '/socket.io/',
-  serveClient: false
+  serveClient: false,
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  cookie: false,
+  cors: {
+    origin: "https://vani-frontend.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true,
+  connectTimeout: 45000
+});
+
+// Add WebSocket health check
+app.get('/socket.io/', (req, res) => {
+  res.send('Socket.IO is running');
 });
 
 // Apply CORS middleware to Express

@@ -50,6 +50,20 @@ const io = socketIo(server, {
     }
 });
 app.use(cors(corsOptions));
+
+// CORS middleware configuration
+app.use(cors({
+  origin: 'https://vani-frontend.vercel.app',
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['X-CSRF-Token', 'X-Requested-With', 'Accept', 'Accept-Version', 'Content-Length', 'Content-MD5', 'Content-Type', 'Date', 'X-Api-Version', 'Authorization', 'x-auth-token', 'Origin'],
+  credentials: true,
+  maxAge: 86400
+}));
+
+// Add OPTIONS handling for preflight requests
+app.options('*', cors());
+
+
 // Middleware
 app.use(express.json());
 

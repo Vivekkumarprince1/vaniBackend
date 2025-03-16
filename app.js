@@ -81,9 +81,22 @@ const corsConfig = {
   optionsSuccessStatus: 204
 };
 
-// Initialize Socket.IO with CORS config
+// Initialize Socket.IO with updated config
 const io = socketIo(server, {
-  cors: corsConfig
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: corsConfig.allowedHeaders
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  agent: false,
+  path: '/socket.io/',
+  serveClient: false
 });
 
 // Apply CORS middleware to Express
@@ -109,6 +122,11 @@ const connectDB = async () => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/translator', translatorRoutes);
+
+// Add health check route
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
 // Socket.IO middleware for authentication
 io.use((socket, next) => {

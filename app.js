@@ -8,8 +8,8 @@ const Chat = require('./models/Chat');
 const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const { translateText } = require('./utils/translator');
+const { translateSpeech, speechToText } = require('./utils/speechTranslator');
 const translatorRoutes = require('./routes/translator');
-const { translateSpeech } = require('./utils/speechTranslator');
 
 // Load environment variables
 dotenv.config();
@@ -25,20 +25,31 @@ console.log('Azure Translator Key:', process.env.AZURE_TRANSLATOR_KEY ? '****' +
 const app = express();
 const server = http.createServer(app);
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://vani-frontend.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app', 'https://vani.vercel.app'] 
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000'];
+    ? ['https://vani.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app'] 
+    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
 
 const corsOptions = {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.error('Origin not allowed:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Origin', 'Accept'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    maxAge: 600
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 };
 
+const io = socketIo(server, { 
+    cors: {
+        origin: allowedOrigins,
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
+});
 app.use(cors(corsOptions));
-
 // Middleware
 app.use(express.json());
 
@@ -56,11 +67,6 @@ const connectDB = async () => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/translator', translatorRoutes);
-
-// Update Socket.IO CORS config
-const io = socketIo(server, { 
-    cors: corsOptions
-});
 
 // Socket.IO middleware for authentication
 io.use((socket, next) => {
@@ -90,34 +96,113 @@ const rooms = {};
 io.on('connection', async (socket) => {
   console.log('New client connected:', socket.id);
   
+  if (socket.user) {
+    try {
+      // Update user status and socket ID
+      const user = await User.findByIdAndUpdate(
+        socket.user.userId,
+        {
+          socketId: socket.id,
+          status: 'online',
+          lastActive: Date.now()
+        },
+        { new: true }
+      );
+
+      // Broadcast to all connected clients
+      socket.broadcast.emit('userStatusChanged', {
+        userId: user._id,
+        socketId: socket.id,
+        status: 'online',
+        lastActive: user.lastActive
+      });
+
+      // Set up heartbeat to maintain online status
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          await User.findByIdAndUpdate(socket.user.userId, {
+            lastActive: Date.now(),
+            status: 'online'
+          });
+        } catch (err) {
+          console.error('Heartbeat error:', err);
+        }
+      }, 30000); // Every 30 seconds
+
+      socket.on('disconnect', async () => {
+        clearInterval(heartbeatInterval);
+        console.log('Client disconnected:', socket.id);
+        
+        try {
+          await User.findByIdAndUpdate(socket.user.userId, {
+            socketId: null,
+            status: 'offline',
+            lastActive: Date.now()
+          });
+
+          socket.broadcast.emit('userStatusChanged', {
+            userId: socket.user.userId,
+            socketId: null,
+            status: 'offline',
+            lastActive: Date.now()
+          });
+        } catch (err) {
+          console.error('Error updating user status on disconnect:', err);
+        }
+      });
+    } catch (err) {
+      console.error('Error in socket connection:', err);
+    }
+  }
+  
   // Store user information and update their socketId in DB
   if (socket.user) {
     try {
-      await User.findByIdAndUpdate(socket.user.userId, {
-        socketId: socket.id,
-        status: 'online'
-      });
+      // Update user status and socket ID
+      const updatedUser = await User.findByIdAndUpdate(
+        socket.user.userId, 
+        {
+          socketId: socket.id,
+          status: 'online',
+          lastActive: Date.now()
+        },
+        { new: true }
+      ).select('-password');
       
       // Broadcast to other users that this user is online
       socket.broadcast.emit('userStatusChanged', {
         userId: socket.user.userId,
         socketId: socket.id,
-        status: 'online'
+        status: 'online',
+        lastActive: updatedUser.lastActive
       });
-      
+
+      // Set up heartbeat to keep user status updated
+      const heartbeat = setInterval(async () => {
+        try {
+          await User.findByIdAndUpdate(socket.user.userId, {
+            lastActive: Date.now()
+          });
+        } catch (err) {
+          console.error('Heartbeat update failed:', err);
+        }
+      }, 30000); // Every 30 seconds
+
       // Add disconnect handler
       socket.on('disconnect', async () => {
+        clearInterval(heartbeat);
         console.log('User disconnected:', socket.user.userId);
         await User.findByIdAndUpdate(socket.user.userId, {
           socketId: null,
           status: 'offline',
-          lastSeen: new Date()
+          lastActive: Date.now()
         });
         
         socket.broadcast.emit('userStatusChanged', {
           userId: socket.user.userId,
           socketId: null,
-          status: 'offline'
+          status: 'offline',
+          lastActive: Date.now()
         });
       });
     } catch (err) {
@@ -379,38 +464,105 @@ io.on('connection', async (socket) => {
     });
   });
   
+  // Handle audio translation - remove old handler and replace with this one
   // Handle audio translation
-  socket.on('translateAudio', async (data) => {
+socket.on('translateAudio', async (data) => {
+  try {
+    const { audio, sourceLanguage, targetLanguage, userId } = data;
+    console.log('Received audio translation request:', { 
+      sourceLanguage, 
+      targetLanguage, 
+      userId,
+      audioDataLength: audio ? audio.length : 0 
+    });
+
+    if (!audio || audio.length < 100) {
+      console.warn('Invalid audio data received');
+      socket.emit('error', { message: 'Invalid audio data' });
+      return;
+    }
+
+    const receiverSocketId = Object.keys(users).find(
+      key => users[key].userId === userId
+    );
+
+    if (!receiverSocketId) {
+      console.error('Receiver not found or not online:', userId);
+      socket.emit('error', { message: 'Receiver not found or not online' });
+      return;
+    }
+
+    // Convert base64 to buffer with error handling
+    let audioBuffer;
     try {
-      const { audio, sourceLanguage, targetLanguage, userId } = data;
+      audioBuffer = Buffer.from(audio, 'base64');
+    } catch (err) {
+      console.error('Error decoding audio data:', err);
+      socket.emit('error', { message: 'Invalid audio data format' });
+      return;
+    }
 
-      // Get receiver's socket ID
-      const receiverSocketId = Object.keys(users).find(
-        key => users[key].userId === userId
-      );
-
-      if (!receiverSocketId) {
-        console.error('Receiver not found:', userId);
-        return;
+    // Retry speech-to-text up to 3 times
+    let transcribedText;
+    let attempts = 0;
+    while (attempts < 3 && !transcribedText) {
+      try {
+        transcribedText = await speechToText(audioBuffer, sourceLanguage);
+        if (transcribedText && transcribedText.trim()) {
+          break;
+        }
+      } catch (err) {
+        console.error(`Speech-to-text attempt ${attempts + 1} failed:`, err);
+        attempts++;
+        if (attempts === 3) {
+          socket.emit('error', { message: 'Speech recognition failed' });
+          return;
+        }
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
+    }
 
-      // Translate the audio
-      const result = await translateSpeech(audio, sourceLanguage, targetLanguage);
-      
-      if (result) {
-        // Send translated audio and text to receiver
+    // Send transcription to both parties
+    socket.emit('audioTranscript', {
+      text: transcribedText,
+      isLocal: true
+    });
+    
+    io.to(receiverSocketId).emit('audioTranscript', {
+      text: transcribedText,
+      isLocal: false
+    });
+
+    // Only translate if languages are different
+    if (sourceLanguage !== targetLanguage) {
+      try {
+        // First translate the text
+        const translatedText = await translateText(transcribedText, targetLanguage);
+        console.log('Translated text:', translatedText);
+        
+        // Then convert translated text to speech
+        const translatedAudio = await textToSpeech(translatedText, targetLanguage);
+        
+        // Send the complete result
         io.to(receiverSocketId).emit('translatedAudio', {
           text: {
-            original: result.text,
-            translated: result.translatedText
+            original: transcribedText,
+            translated: translatedText
           },
-          audio: result.audio
+          audio: translatedAudio.toString('base64')
         });
+      } catch (translationError) {
+        console.error('Translation error:', translationError);
+        socket.emit('error', { message: 'Translation failed' });
       }
-    } catch (error) {
-      console.error('Error translating audio:', error);
     }
-  });
+  } catch (error) {
+    console.error('Error in translateAudio handler:', error);
+    socket.emit('error', { message: 'Internal server error' });
+  }
+});
+
   
   // Handle disconnect
   socket.on('disconnect', (reason) => {

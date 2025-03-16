@@ -16,7 +16,7 @@
         { "key": "Access-Control-Allow-Credentials", "value": "true" },
         { "key": "Access-Control-Allow-Origin", "value": "https://vani-frontend.vercel.app" },
         { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
-        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-auth-token" }
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-auth-token, Origin" }
       ]
     }
   ],
@@ -26,7 +26,8 @@
     "AZURE_TRANSLATOR_KEY": "A7tATAM0ei1DAO8zvBUXyjVs42r0kYQ1EFozVSDlEYtsEHsXP5LsJQQJ99BCACGhslBXJ3w3AAAbACOGBUIP",
     "AZURE_TRANSLATOR_REGION": "centralindia",
     "AZURE_TRANSLATOR_ENDPOINT": "https://api.cognitive.microsofttranslator.com/",
-    "AZURE_SPEECH_KEY": "your-azure-speech-key",
-    "AZURE_SPEECH_REGION": "centralindia"
+    "AZURE_SPEECH_KEY": "81RQKYleOhF4cOHDKNTMsAIZbHd0O5mt7igJjy40XOBD43qm2bFXJQQJ99BCACGhslBXJ3w3AAAYACOGtC3E",
+    "AZURE_SPEECH_REGION": "centralindia",
+    "AZURE_SPEECH_ENDPOINT": "https://centralindia.api.cognitive.microsoft.com/"
   }
 }

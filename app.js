@@ -22,7 +22,30 @@ console.log('MongoDB URI:', process.env.MONGO_URI ? '****' + process.env.MONGO_U
 console.log('Azure Translator Region:', process.env.AZURE_TRANSLATOR_REGION);
 console.log('Azure Translator Key:', process.env.AZURE_TRANSLATOR_KEY ? '****' + process.env.AZURE_TRANSLATOR_KEY.slice(-4) : 'Not configured');
 
+// Increase timeout and add body size limits
 const app = express();
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Add timeout middleware
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    res.status(504).send('Request Timeout');
+  });
+  next();
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: {
+      message: err.message || 'Internal Server Error',
+      code: err.code || 'INTERNAL_ERROR'
+    }
+  });
+});
+
 const server = http.createServer(app);
 
 // Updated allowed origins
@@ -36,7 +59,7 @@ const allowedOrigins = [
 
 // Single CORS configuration for both Express and Socket.IO
 const corsConfig = {
-  origin: 'https://vani-frontend.vercel.app',
+  origin: '*',  // temporarily allow all origins for testing
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
@@ -53,7 +76,9 @@ const corsConfig = {
     'x-auth-token',
     'Origin'
   ],
-  maxAge: 86400
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Initialize Socket.IO with CORS config

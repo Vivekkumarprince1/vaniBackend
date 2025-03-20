@@ -59,7 +59,7 @@ const allowedOrigins = [
 
 // Single CORS configuration for both Express and Socket.IO
 const corsConfig = {
-  origin: '*',  // temporarily allow all origins for testing
+  origin: allowedOrigins,  // Use specific allowed origins instead of '*'
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
@@ -81,8 +81,6 @@ const corsConfig = {
   optionsSuccessStatus: 204
 };
 
-// Find the Socket.IO initialization section (around line 85) and update it:
-
 // Initialize Socket.IO with updated config
 const io = socketIo(server, {
   path: '/socket.io/',
@@ -90,11 +88,7 @@ const io = socketIo(server, {
   pingInterval: 10000,
   pingTimeout: 5000,
   cookie: false,
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true
-  },
+  cors: corsConfig, // Use the same CORS config
   transports: ['polling'], // Use only polling for Vercel compatibility
   allowEIO3: true,
   connectTimeout: 45000
@@ -112,7 +106,7 @@ app.get('/socket.io/', (req, res) => {
   res.send('Socket.IO is running');
 });
 
-// Apply CORS middleware to Express
+// Apply CORS middleware to Express - IMPORTANT: Move this before defining routes
 app.use(cors(corsConfig));
 
 // Pre-flight requests

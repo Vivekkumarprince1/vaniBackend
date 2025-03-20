@@ -59,7 +59,7 @@ const allowedOrigins = [
 
 // Single CORS configuration for both Express and Socket.IO
 const corsConfig = {
-  origin: allowedOrigins,  // Use specific allowed origins instead of '*'
+  origin: '*',  // temporarily allow all origins for testing
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
@@ -88,17 +88,14 @@ const io = socketIo(server, {
   pingInterval: 10000,
   pingTimeout: 5000,
   cookie: false,
-  cors: corsConfig, // Use the same CORS config
-  transports: ['polling'], // Use only polling for Vercel compatibility
+  cors: {
+    origin: "https://vani-frontend.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['polling', 'websocket'],
   allowEIO3: true,
   connectTimeout: 45000
-});
-
-// Add a log to show which transport is being used
-io.on('connection', (socket) => {
-  console.log('Client connected via', socket.conn.transport.name);
-  
-  // Rest of your connection code...
 });
 
 // Add WebSocket health check
@@ -106,7 +103,7 @@ app.get('/socket.io/', (req, res) => {
   res.send('Socket.IO is running');
 });
 
-// Apply CORS middleware to Express - IMPORTANT: Move this before defining routes
+// Apply CORS middleware to Express
 app.use(cors(corsConfig));
 
 // Pre-flight requests

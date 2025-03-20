@@ -81,6 +81,8 @@ const corsConfig = {
   optionsSuccessStatus: 204
 };
 
+// Find the Socket.IO initialization section (around line 85) and update it:
+
 // Initialize Socket.IO with updated config
 const io = socketIo(server, {
   path: '/socket.io/',
@@ -89,13 +91,20 @@ const io = socketIo(server, {
   pingTimeout: 5000,
   cookie: false,
   cors: {
-    origin: "https://vani-frontend.vercel.app",
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ['polling', 'websocket'],
+  transports: ['polling'], // Use only polling for Vercel compatibility
   allowEIO3: true,
   connectTimeout: 45000
+});
+
+// Add a log to show which transport is being used
+io.on('connection', (socket) => {
+  console.log('Client connected via', socket.conn.transport.name);
+  
+  // Rest of your connection code...
 });
 
 // Add WebSocket health check

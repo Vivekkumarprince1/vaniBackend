@@ -5,14 +5,6 @@ const Chat = require('../models/Chat');
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => {
-    console.error('MongoDB Connection error:', err);
-    process.exit(1);
-  });
-
 // Update old chat messages to include new fields
 const migrateChatData = async () => {
   try {

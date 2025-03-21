@@ -10,10 +10,10 @@ const AZURE_TRANSLATOR_REGION = process.env.AZURE_TRANSLATOR_REGION;
 const AZURE_TRANSLATOR_KEY = process.env.AZURE_TRANSLATOR_KEY;
 
 // Log configuration on startup
-console.log('Azure Translator Configuration:');
-console.log('Endpoint:', AZURE_TRANSLATOR_ENDPOINT);
-console.log('Region:', AZURE_TRANSLATOR_REGION);
-console.log('Key:', AZURE_TRANSLATOR_KEY ? '****' + AZURE_TRANSLATOR_KEY.slice(-4) : 'Not configured');
+// console.log('Azure Translator Configuration:');
+// console.log('Endpoint:', AZURE_TRANSLATOR_ENDPOINT);
+// console.log('Region:', AZURE_TRANSLATOR_REGION);
+// console.log('Key:', AZURE_TRANSLATOR_KEY ? '****' + AZURE_TRANSLATOR_KEY.slice(-4) : 'Not configured');
 
 /**
  * Translates text to target language using Azure Translator

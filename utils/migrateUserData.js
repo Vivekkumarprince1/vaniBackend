@@ -5,14 +5,6 @@ const User = require('../models/User');
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => {
-    console.error('MongoDB Connection error:', err);
-    process.exit(1);
-  });
-
 // Update user data to ensure language preferences are set
 const migrateUserData = async () => {
   try {

@@ -11,14 +11,24 @@ const { translateText } = require('./translator');
  */
 const translateSpeech = async (audioData, sourceLanguage, targetLanguage) => {
   try {
+    if (!audioData || audioData.length < 44) {
+      return {
+        error: 'Invalid audio data',
+        text: { original: '', translated: '' }
+      };
+    }
+
+    // Normalize language codes
+    sourceLanguage = sourceLanguage.toLowerCase().split('-')[0];
+    targetLanguage = targetLanguage.toLowerCase().split('-')[0];
+
     console.log(`Translating speech from ${sourceLanguage} to ${targetLanguage}...`);
 
     // Convert speech to text with built-in retry mechanism
     const originalText = await speechToText(audioData, sourceLanguage);
-    if (!originalText) {
-      console.log('No speech detected or recognition failed');
+    if (!originalText || !originalText.trim()) {
       return {
-        error: 'No speech detected or recognition failed',
+        error: 'No speech detected',
         text: {
           original: '',
           translated: ''

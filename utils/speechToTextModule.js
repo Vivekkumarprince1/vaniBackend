@@ -1,200 +1,184 @@
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+const { Readable } = require('stream');
 
 // Azure Speech Service configuration
 const SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
 const SPEECH_REGION = process.env.AZURE_SPEECH_REGION;
-const SPEECH_ENDPOINT = process.env.AZURE_SPEECH_ENDPOINT || `https://${SPEECH_REGION}.api.cognitive.microsoft.com/sts/v1.0/issuetoken`;
 
 // Log configuration on startup (with masked key for security)
-console.log('Azure Speech Service Configuration (Speech-to-Text):')
+console.log('Azure Speech Service Configuration:');
 console.log('Region:', SPEECH_REGION);
-console.log('Endpoint:', SPEECH_ENDPOINT);
 console.log('Key:', SPEECH_KEY ? '****' + SPEECH_KEY.slice(-4) : 'Not configured');
 
-// Validate credentials
-if (!SPEECH_KEY || !SPEECH_REGION) {
-  console.error('Azure Speech Service credentials not configured!');
-}
+// Language code mapping for Azure Speech Service
+const languageCodeMap = {
+  'en': 'en-US',
+  'hi': 'hi-IN',
+  'es': 'es-ES',
+  'fr': 'fr-FR',
+  'de': 'de-DE',
+  'it': 'it-IT',
+  'ja': 'ja-JP',
+  'ko': 'ko-KR',
+  'pt': 'pt-BR',
+  'ru': 'ru-RU',
+  'zh': 'zh-CN',
+  // Add more mappings as needed
+};
 
-/**
- * Converts speech to text using Azure Speech Services
- * @param {ArrayBuffer} audioData - Raw audio data
- * @param {string} sourceLanguage - Source language code
- * @returns {Promise<string>} - Transcribed text
- */
+// Validate and map language code
+const getValidLanguageCode = (languageCode) => {
+  const mappedCode = languageCodeMap[languageCode] || languageCode;
+  // Verify if the language is supported by creating a temp config
+  try {
+    const tempConfig = sdk.SpeechConfig.fromSubscription(SPEECH_KEY, SPEECH_REGION);
+    tempConfig.speechRecognitionLanguage = mappedCode;
+    return mappedCode;
+  } catch (error) {
+    throw new Error(`Unsupported language code: ${languageCode}`);
+  }
+};
+
+// Add proper WAV format validation
+const isValidWavFormat = (buffer) => {
+  if (buffer.length < 44) return false;
+  const header = buffer.slice(0, 4).toString('ascii');
+  const format = buffer.slice(8, 12).toString('ascii');
+  return header === 'RIFF' && format === 'WAVE';
+};
+
 const speechToText = async (audioData, sourceLanguage, maxRetries = 3) => {
-
-  // Retry mechanism
   let attempts = 0;
   let lastError = null;
 
-  // Exponential backoff delay calculation
-  const getBackoffDelay = (attempt) => Math.min(1000 * Math.pow(2, attempt), 8000);
+  // Validate audio format first
+  if (!isValidWavFormat(audioData)) {
+    throw new Error('Invalid WAV format');
+  }
+
+  // Validate and map language code first
+  try {
+    sourceLanguage = getValidLanguageCode(sourceLanguage);
+  } catch (error) {
+    console.error('Language validation error:', error);
+    throw error;
+  }
 
   while (attempts < maxRetries) {
     try {
-    //   console.log(`Speech-to-text attempt ${attempts + 1}/${maxRetries}...`, { sourceLanguage, dataLength: audioData.length });
-      
-      // Validate WAV header
-      if (!isValidWavFormat(audioData)) {
-        console.error('Invalid WAV format');
-        throw new Error('Invalid audio format');
-      }
-
-      // Validate source language
-      if (!audioData) {
-        console.error('audioData not provided');
-        throw new Error('audioData not provided');
-      } 
+      console.log(`Attempt ${attempts + 1}: Processing audio for language ${sourceLanguage}`);
 
       const speechConfig = sdk.SpeechConfig.fromSubscription(SPEECH_KEY, SPEECH_REGION);
       speechConfig.speechRecognitionLanguage = sourceLanguage;
-      
-      // Configure for optimal speech recognition
-      speechConfig.setProperty("SpeechServiceResponse_Detailed_Result", "true");
-      speechConfig.setProfanity(sdk.ProfanityOption.Raw);
-      speechConfig.enableAudioLogging();
-      
-      // Add connection timeout and retry settings
-      speechConfig.setProperty("Speech_ConnectionTimeout", "15"); // 15 seconds
-      speechConfig.setProperty("Speech_InitialSilenceTimeoutMs", "5000"); // 5 seconds
-      speechConfig.setProperty("Speech_EndSilenceTimeoutMs", "5000"); // 5 seconds
+      speechConfig.enableDictation();  // Enable better recognition for longer sentences
       
       const pushStream = sdk.AudioInputStream.createPushStream();
+      const audioConfig = sdk.AudioConfig.fromStreamInput(pushStream);
       
-      // Write audio data in chunks
+      // Create recognizer with proper configuration
+      const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+
+      // Write audio data to stream
       const chunkSize = 4096;
-      for (let i = 44; i < audioData.length; i += chunkSize) { // Skip WAV header
-        const chunk = audioData.slice(i, i + chunkSize);
+      let offset = 44; // Skip WAV header
+      for (let i = offset; i < audioData.length; i += chunkSize) {
+        const chunk = audioData.slice(i, Math.min(i + chunkSize, audioData.length));
         pushStream.write(chunk);
       }
       pushStream.close();
-      
-      const audioConfig = sdk.AudioConfig.fromStreamInput(pushStream);
-      const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
 
-      const result = await new Promise((resolve, reject) => {
-        let finalText = '';
-        let recognitionStarted = false;
-        let timeoutHandle;
-        
-        recognizer.recognized = (_, event) => {
-          if (event.result.reason === sdk.ResultReason.RecognizedSpeech) {
-            const text = event.result.text.trim();
-            if (text) {
-              finalText += ' ' + text;
-              console.log('Recognized text:', text);
-            }
+      return new Promise((resolve, reject) => {
+        let recognizedText = '';
+
+        recognizer.recognizing = (s, e) => {
+          console.log(`RECOGNIZING: ${e.result.text}`);
+        };
+
+        recognizer.recognized = (s, e) => {
+          if (e.result.reason === sdk.ResultReason.RecognizedSpeech) {
+            const text = e.result.text.trim();
+            console.log(`RECOGNIZED: ${text}`);
+            recognizedText += ' ' + text;
+          } else if (e.result.reason === sdk.ResultReason.NoMatch) {
+            console.log(`NOMATCH: Speech could not be recognized: ${sdk.NoMatchDetails.fromResult(e.result)}`);
           }
         };
 
-        recognizer.canceled = (_, event) => {
-          clearTimeout(timeoutHandle);
-          if (event.reason === sdk.CancellationReason.Error) {
-            console.error(`Recognition error details (attempt ${attempts + 1}/${maxRetries}):`, {
-              errorCode: event.errorCode,
-              errorDetails: event.errorDetails
-            });
+        recognizer.canceled = (s, e) => {
+          console.log(`CANCELED: Reason=${e.reason}`);
+          if (e.reason === sdk.CancellationReason.Error) {
+            console.error(`CANCELED: ErrorCode=${e.errorCode}`);
+            console.error(`CANCELED: ErrorDetails=${e.errorDetails}`);
             
-            // Check for specific error codes that might benefit from retry
-            const shouldRetry = [
-              4, // Connection error
-              1006, // Server error
-              400, // Bad request
-              503 // Service unavailable
-            ].includes(event.errorCode) || event.errorDetails.includes('Unable to contact server');
-            
-            if (shouldRetry && attempts < maxRetries - 1) {
-              reject(new Error(`Recognition error: ${event.errorDetails}`));
+            // Check for specific language-related errors
+            if (e.errorDetails.includes('language') || e.errorCode === 1007) {
+              reject(new Error(`Unsupported language configuration: ${sourceLanguage}`));
             } else {
-              // If this is the last attempt, try to return any partial text we might have
-              if (finalText.trim()) {
-                console.log('Returning partial text despite error:', finalText);
-                resolve(finalText.trim());
-              } else {
-                reject(new Error(`Recognition error: ${event.errorDetails}`));
-              }
+              reject(new Error(e.errorDetails));
             }
-          } else {
-            console.log('Recognition canceled normally');
-            resolve(finalText.trim());
           }
-          recognizer.stopContinuousRecognitionAsync();
+          recognizer.stopContinuousRecognitionAsync(
+            () => {
+              resolve(recognizedText.trim());
+            },
+            (err) => {
+              console.error('Error stopping recognition:', err);
+              reject(err);
+            }
+          );
         };
 
-        recognizer.sessionStarted = () => {
-          recognitionStarted = true;
-          console.log(`Recognition session started (attempt ${attempts + 1}/${maxRetries})`);
+        recognizer.sessionStopped = (s, e) => {
+          console.log('Session stopped');
+          recognizer.stopContinuousRecognitionAsync(
+            () => {
+              resolve(recognizedText.trim());
+            },
+            (err) => {
+              console.error('Error stopping recognition:', err);
+              reject(err);
+            }
+          );
         };
 
-        recognizer.sessionStopped = () => {
-          clearTimeout(timeoutHandle);
-          console.log(`Recognition completed (attempt ${attempts + 1}/${maxRetries}). Final text:`, finalText);
-          recognizer.stopContinuousRecognitionAsync();
-          resolve(finalText.trim());
-        };
-
-        // Start recognition with timeout
+        // Start recognition
         recognizer.startContinuousRecognitionAsync(
-          () => {
-            timeoutHandle = setTimeout(() => {
-              if (!finalText.trim() && recognitionStarted) {
-                console.log(`Recognition timeout - stopping (attempt ${attempts + 1}/${maxRetries})`);
-                recognizer.stopContinuousRecognitionAsync();
-              }
-            }, 15000); // 15 second timeout (increased from 10)
-          },
-          (error) => {
-            console.error(`Could not start recognition (attempt ${attempts + 1}/${maxRetries}):`, error);
-            reject(error);
+          () => console.log('Recognition started'),
+          (err) => {
+            console.error('Recognition error:', err);
+            reject(err);
           }
         );
+
+        // Set timeout with proper cleanup
+        setTimeout(() => {
+          if (!recognizedText.trim()) {
+            recognizer.stopContinuousRecognitionAsync(
+              () => reject(new Error('Recognition timeout - no speech detected')),
+              (err) => reject(err)
+            );
+          }
+        }, 10000);
       });
-      
-      // If we got here, recognition was successful
-      return result;
-      
+
     } catch (error) {
+      console.error(`Attempt ${attempts + 1} failed:`, error);
       lastError = error;
       attempts++;
       
       if (attempts < maxRetries) {
-        // Calculate backoff delay based on attempt number
-        const backoffDelay = getBackoffDelay(attempts);
-        console.log(`Retrying speech recognition after ${backoffDelay}ms (attempt ${attempts}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, backoffDelay));
-      } else {
-        console.error(`All ${maxRetries} speech-to-text attempts failed:`, error);
-        throw lastError;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        continue;
       }
+      throw lastError;
     }
   }
-  
-  // This should not be reached, but just in case
-//   throw lastError || new Error('Speech recognition failed after all attempts');
 };
 
-// Helper function to validate WAV format
-function isValidWavFormat(buffer) {
-  if (buffer.length < 44) return false; // WAV header is 44 bytes
-
-  // Check RIFF header
-  const header = buffer.slice(0, 4).toString('ascii');
-  if (header !== 'RIFF') {
-    console.error('Invalid RIFF header:', header);
-    return false;
-  }
-
-  // Check WAVE format
-  const format = buffer.slice(8, 12).toString('ascii');
-  if (format !== 'WAVE') {
-    console.error('Invalid WAVE format:', format);
-    return false;
-  }
-
-  return true;
-}
-
-module.exports = {
-  speechToText
+module.exports = { 
+  speechToText,
+  getValidLanguageCode // Export for use in other modules
 };

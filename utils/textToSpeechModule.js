@@ -178,24 +178,7 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
         console.log(`Retrying in ${backoffDelay}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoffDelay));
         continue;
-      }
-      
-      // If all attempts fail, return a default audio file instead of throwing an error
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const defaultAudioPath = path.join(__dirname, '../assets/default_message.wav');
-        
-        if (fs.existsSync(defaultAudioPath)) {
-          console.log('Returning default audio file after failed synthesis');
-          return fs.readFileSync(defaultAudioPath);
-        } else {
-          throw lastError;
-        }
-      } catch (fsError) {
-        console.error('Could not load default audio:', fsError);
-        throw lastError;
-      }
+      }     
     }
   }
 };

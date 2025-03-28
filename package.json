@@ -8,8 +8,6 @@
     "start": "node app.js",
     "migrate-chat": "node utils/migrateChatData.js",
     "migrate-users": "node utils/migrateUserData.js",
-    "test-translation": "node testTranslation.js",
-    "test-messages": "node testMessageTranslation.js",
     "dev": "nodemon app.js"
   },
   "keywords": [],
@@ -26,7 +24,9 @@
     "jsonwebtoken": "^9.0.2",
     "microsoft-cognitiveservices-speech-sdk": "^1.43.0",
     "mongoose": "^7.6.3",
-    "socket.io": "^4.7.2"
+    "revai-node-sdk": "^3.8.5",
+    "socket.io": "^4.7.2",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

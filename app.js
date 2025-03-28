@@ -30,7 +30,7 @@ app.use('/api/translator', require('./routes/translator'));
 // Connect to database and start server
 connectDB()
   .then(() => {
-    server.listen(PORT, () => {
+    server.listen(PORT,'0.0.0.0', () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Access it at http://localhost:${PORT}`);
     });

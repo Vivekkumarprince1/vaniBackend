@@ -3,29 +3,27 @@ const Chat = require('../models/Chat');
 const { translateText } = require('../utils/translator');
 
 /**
- * Handle room messages
- * @param {Object} io - Socket.IO instance
- * @param {Object} socket - Socket connection
- * @param {Object} newMessage - New message object
- * @param {String} roomId - Room ID
- * @param {String} message - Original message
- * @param {String} originalLanguage - Original language
- * @param {Map} translations - Translations map
- * @param {Object} users - Active users object
+ * @param {Object} io 
+ * @param {Object} socket
+ * @param {Object} newMessage 
+ * @param {String} roomId 
+ * @param {String} message 
+ * @param {String} originalLanguage 
+ * @param {Map} translations 
+ * @param {Object} users 
  */
 const handleRoomMessage = async (io, socket, newMessage, roomId, message, originalLanguage, translations, users) => {
   console.log('Processing room message. Room ID:', roomId);
   newMessage.room = roomId;
   newMessage.isGroupMessage = true;
   
-  // Get all users in the room with their language preferences
   const roomUsers = await User.find({ 
     _id: { $ne: socket.user.userId }
   }).select('_id preferredLanguage');
   
   console.log(`Room message from ${socket.user.userId} to ${roomUsers.length} users`);
   
-  // Get unique languages needed for translation
+  //languages needed for translation
   const uniqueLangs = [...new Set(roomUsers.map(u => u.preferredLanguage || 'en'))];
   
   // Translate for each unique language

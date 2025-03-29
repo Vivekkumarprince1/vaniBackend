@@ -42,7 +42,7 @@ const handleUserConnection = async (io, socket, users) => {
 
       socket.on('disconnect', async () => {
         clearInterval(heartbeatInterval);
-        console.log('Client disconnected:', socket.id);
+        // console.log('Client disconnected:', socket.id);
         
         try {
           await User.findByIdAndUpdate(socket.user.userId, {
@@ -72,7 +72,7 @@ const handleUserConnection = async (io, socket, users) => {
       userId: socket.user.userId,
       socketId: socket.id
     };
-    console.log('Updated active users:', users);
+    // console.log('Updated active users:', users);
   } else {
     console.error('Socket connected without user data:', socket.id);
   }

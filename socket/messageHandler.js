@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const Chat = require('../models/Chat');
-const { translateText } = require('../utils/translator');
+const { translateMessageText } = require('../utils/messageTranslator');
 
 /**
  * @param {Object} io 
@@ -31,7 +31,7 @@ const handleRoomMessage = async (io, socket, newMessage, roomId, message, origin
     if (targetLang && targetLang !== originalLanguage && !translations.has(targetLang)) {
       try {
         console.log(`Translating from ${originalLanguage} to ${targetLang}`);
-        const translated = await translateText(message, targetLang);
+        const translated = await translateMessageText(message, targetLang);
         if (translated) {
           translations.set(targetLang, translated);
           console.log(`Translation result for ${targetLang}: "${translated}"`);
@@ -113,7 +113,7 @@ const handleDirectMessage = async (io, socket, newMessage, receiverId, message, 
   if (receiverLang !== originalLanguage) {
     try {
       console.log(`Translating from ${originalLanguage} to ${receiverLang}`);
-      const translated = await translateText(message, receiverLang);
+      const translated = await translateMessageText(message, receiverLang);
       if (translated) {
         translations.set(receiverLang, translated);
         console.log(`Translation result: "${translated}"`);

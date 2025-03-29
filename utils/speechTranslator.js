@@ -22,54 +22,51 @@ const translateSpeech = async (audioData, sourceLanguage, targetLanguage) => {
     sourceLanguage = sourceLanguage.toLowerCase().split('-')[0];
     targetLanguage = targetLanguage.toLowerCase().split('-')[0];
 
-    console.log(`Translating speech from ${sourceLanguage} to ${targetLanguage}...`);
+    console.log(`Starting speech translation flow from ${sourceLanguage} to ${targetLanguage}...`);
 
-    // Convert speech to text with built-in retry mechanism
+    // 1. Convert speech to text
     const originalText = await speechToText(audioData, sourceLanguage);
     if (!originalText || !originalText.trim()) {
       return {
         error: 'No speech detected',
-        text: {
-          original: '',
-          translated: ''
-        }
+        text: { original: '', translated: '' }
       };
     }
 
-    // Skip translation if source and target languages are the same
-    if (sourceLanguage === targetLanguage) {
-      console.log('Source and target languages are the same, skipping translation');
-      
-      // Convert text to speech directly
-      const audio = await textToSpeech(originalText, targetLanguage);
-      
-      return {
-        text: {
-          original: originalText,
-          translated: originalText // Same as original
-        },
-        audio: audio
-      };
-    }
+    console.log('Speech to text result:', { originalText });
 
-    // Translate text
+    // 2. Translate text - always translate if languages are different
     let translatedText;
-    try {
-      translatedText = await translateText(originalText, targetLanguage);
-      if (!translatedText) {
-        console.log('Translation returned empty result, using original text');
-        translatedText = originalText;
+    if (sourceLanguage !== targetLanguage) {
+      try {
+        translatedText = await translateText(originalText, sourceLanguage, targetLanguage);
+        console.log('Translation result:', { translatedText });
+        
+        if (!translatedText) {
+          console.error('Translation returned empty result');
+          return {
+            error: 'Translation failed - empty result',
+            text: { original: originalText, translated: '' }
+          };
+        }
+      } catch (translationError) {
+        console.error('Translation error:', translationError);
+        return {
+          error: `Translation failed: ${translationError.message}`,
+          text: { original: originalText, translated: '' }
+        };
       }
-    } catch (translationError) {
-      console.error('Translation error:', translationError);
-      // Fall back to original text if translation fails
+    } else {
       translatedText = originalText;
     }
 
-    // Convert translated text to speech
+    // 3. Convert translated text to speech
     let translatedAudio;
     try {
       translatedAudio = await textToSpeech(translatedText, targetLanguage);
+      if (!translatedAudio || translatedAudio.length === 0) {
+        throw new Error('Generated audio is empty');
+      }
     } catch (speechError) {
       console.error('Text-to-speech error:', speechError);
       return {
@@ -90,13 +87,9 @@ const translateSpeech = async (audioData, sourceLanguage, targetLanguage) => {
     };
   } catch (error) {
     console.error('Error in speech translation:', error);
-    // Return a structured error response instead of throwing
     return {
       error: `Speech translation failed: ${error.message || 'Unknown error'}`,
-      text: {
-        original: '',
-        translated: ''
-      }
+      text: { original: '', translated: '' }
     };
   }
 };

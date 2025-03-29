@@ -30,7 +30,7 @@ const handleDisconnect = (io, socket, users, rooms) => {
     
     // Remove user from active users
     delete users[socket.id];
-    console.log('Updated active users:', users);
+    // console.log('Updated active users:', users);
   });
 };
 

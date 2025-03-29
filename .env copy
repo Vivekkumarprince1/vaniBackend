@@ -1,0 +1,16 @@
+# Azure Translator Configuration
+AZURE_TRANSLATOR_KEY=A7tATAM0ei1DAO8zvBUXyjVs42r0kYQ1EFozVSDlEYtsEHsXP5LsJQQJ99BCACGhslBXJ3w3AAAbACOGBUIP
+AZURE_TRANSLATOR_REGION=centralindia
+AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com/
+
+# Microsoft Azure Speech to Text Configuration
+AZURE_SPEECH_KEY=778d4b4138f542f3894be38fb5838715
+AZURE_SPEECH_REGION=eastus
+AZURE_SPEECH_ENDPOINT=https://eastus.api.cognitive.microsoft.com/
+
+# Other existing environment variables
+JWT_SECRET=your-jwt-secret
+PORT=2000
+MONGO_URI=mongodb+srv://thevivek151:Prince1%40@cluster0.t9kw5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+

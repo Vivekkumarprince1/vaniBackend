@@ -89,14 +89,14 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
         speechConfig.speechSynthesisVoiceName = voiceName;
       }
       
-      // Use WAV format instead of MP3 for better compatibility
-      speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Riff24Khz16BitMonoPcm;
+      // Set audio format directly without using AudioOutputFormat
+      speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm;
       
-      // Create audio output config (file-based for debugging)
+      // Create temp file with unique name
       const tempFileName = `temp_${Date.now()}.wav`;
       const audioConfig = sdk.AudioConfig.fromAudioFileOutput(tempFileName);
       
-      // Create synthesizer with audio output config
+      // Create synthesizer
       const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
 
       return await new Promise((resolve, reject) => {

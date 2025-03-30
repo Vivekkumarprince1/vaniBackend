@@ -12,5 +12,3 @@ AZURE_SPEECH_ENDPOINT=https://eastus.api.cognitive.microsoft.com/
 JWT_SECRET=your-jwt-secret
 PORT=2000
 MONGO_URI=mongodb+srv://thevivek151:Prince1%40@cluster0.t9kw5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-
-

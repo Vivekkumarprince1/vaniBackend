@@ -8,27 +8,23 @@ const handleWebRTC = (io, socket) => {
     const { offer, targetId, type, callerInfo } = data;
     
     console.log('Received offer from socket:', socket.id);
-    console.log('Target socket:', targetId);
+    console.log("type", type);
     console.log('Caller info:', callerInfo);
-    console.log('Socket user info:', socket.user ? JSON.stringify(socket.user) : 'undefined');
     
     if (!offer || !targetId) {
       console.error('Missing required offer data');
       return;
     }
 
-    // DIRECTLY USE CALLER INFO FROM THE CLIENT INSTEAD OF ENRICHING
-    // This fixes the Azure issue where socket.user may be undefined
+    // Enrich caller info with socket user data
     const enrichedCallerInfo = {
-      id: callerInfo.id, 
-      name: callerInfo.name || 'Unknown User',
+      id: callerInfo?.id || socket.user?.userId,
+      name: callerInfo?.name || socket.user?.username,
       socketId: socket.id,
       status: 'online',
-      preferredLanguage: callerInfo.preferredLanguage || 'en',
-      avatar: callerInfo.avatar || (callerInfo.name ? callerInfo.name.charAt(0).toUpperCase() : 'U')
+      preferredLanguage: callerInfo?.preferredLanguage || 'en',
+      avatar: callerInfo?.avatar || callerInfo?.name?.charAt(0).toUpperCase()
     };
-
-    console.log('Caller info (not enriched with socket.user):', JSON.stringify(enrichedCallerInfo));
 
     // Check if target socket exists
     const targetSocket = io.sockets.sockets.get(targetId);
@@ -39,48 +35,29 @@ const handleWebRTC = (io, socket) => {
     }
 
     console.log('Emitting incomingCall to:', targetId);
-    
-    // Store what we're sending for debugging
-    const callData = {
+    io.to(targetId).emit('incomingCall', {
       offer,
       from: socket.id,
       type,
       caller: enrichedCallerInfo
-    };
-    
-    console.log('Emitting incomingCall data:', JSON.stringify(callData));
-    
-    io.to(targetId).emit('incomingCall', callData);
+    });
   });
   
   // Enhanced answer handler
   socket.on('answer', (data) => {
     const { answer, targetId, receiverInfo } = data;
     
-    console.log('Received answer from socket:', socket.id);
-    console.log('Target socket for answer:', targetId);
-    console.log('Receiver info from client:', receiverInfo);
-    
-    // DIRECTLY USE RECEIVER INFO FROM CLIENT
-    // This fixes the Azure issue where socket.user may be undefined
-    const enrichedReceiverInfo = {
-      id: receiverInfo.id,
-      name: receiverInfo.name || 'Unknown User',
-      socketId: socket.id,
-      preferredLanguage: receiverInfo.preferredLanguage || 'en'
-    };
-    
-    console.log('Receiver info (not enriched with socket.user):', JSON.stringify(enrichedReceiverInfo));
-    
     // Include receiver info in the answer
-    const answerData = {
+    io.to(targetId).emit('answer', {
       answer,
       from: socket.id,
-      receiverInfo: enrichedReceiverInfo
-    };
-    
-    console.log('Emitting answer data:', JSON.stringify(answerData));
-    io.to(targetId).emit('answer', answerData);
+      receiverInfo: {
+        id: socket.user.userId,
+        name: socket.user.username,
+        socketId: socket.id,
+        preferredLanguage: receiverInfo?.preferredLanguage || 'en'
+      }
+    });
   });
   
   socket.on('iceCandidate', (data) => {

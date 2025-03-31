@@ -1,0 +1,26 @@
+# Configuration for Azure App Service iisnode
+
+# Enable WebSockets
+websockets: true
+
+# Set environment to production
+node_env: production
+
+# Configure logging
+loggingEnabled: true
+logDirectory: iisnode
+debuggingEnabled: false
+
+# Performance settings
+nodeProcessCountPerApplication: 1
+maxConcurrentRequestsPerProcess: 1024
+maxNamedPipeConnectionRetry: 100
+namedPipeConnectionRetryDelay: 250
+maxNamedPipeConnectionPoolSize: 512
+maxNamedPipePooledConnectionAge: 30000
+asyncCompletionThreadCount: 0
+
+# Watchdog settings to restart node if it crashes
+watchedFiles: *.js;iisnode.yml;node_modules\*
+nodeProcessCommandLine: "C:\Program Files\nodejs\node.exe"
+interceptor: "C:\Program Files\iisnode\interceptor.js" 

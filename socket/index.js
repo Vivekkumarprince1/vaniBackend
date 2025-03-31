@@ -23,6 +23,7 @@ const initializeSocket = (server, allowedOrigins) => {
   console.log('Initializing Socket.IO with allowed origins:', allowedOrigins);
   
   const io = socketIo(server, { 
+    path: '/socket.io',
     cors: {
       origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl requests)
@@ -30,27 +31,33 @@ const initializeSocket = (server, allowedOrigins) => {
           callback(null, true);
         } else {
           console.warn(`Origin ${origin} not allowed by Socket.IO CORS policy`);
-          callback(null, true); // Allow all origins in production
+          // In production, we'll allow all origins and rely on other security measures
+          callback(null, true);
         }
       },
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
     },
-    // Connection settings
+    // Connection settings - adjusted for Azure
     transports: ['websocket', 'polling'],
-    maxHttpBufferSize: 5e6, // 5MB
-    pingTimeout: 30000,
-    pingInterval: 25000,
-    upgradeTimeout: 10000,
-    // Allow reconnections
     allowUpgrades: true,
+    upgradeTimeout: 20000, // Longer upgrade timeout for Azure
+    pingTimeout: parseInt(process.env.SOCKET_PING_TIMEOUT || 30000),
+    pingInterval: parseInt(process.env.SOCKET_PING_INTERVAL || 25000),
+    maxHttpBufferSize: 5e6, // 5MB
+    // Enable for Azure web app
+    perMessageDeflate: {
+      threshold: 32768 // Only compress messages larger than this
+    },
+    connectTimeout: 30000,
+    // Disable serving client code (client should bring its own)
     serveClient: false
   });
 
   // Socket.IO middleware for authentication
   io.use((socket, next) => {
-    const token = socket.handshake.auth.token;
+    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
     
     if (!token) {
       console.error('No token provided for socket connection');
@@ -72,6 +79,9 @@ const initializeSocket = (server, allowedOrigins) => {
   io.on('connection', async (socket) => {
     console.log('New client connected:', socket.id);
     
+    // Log transport used for debugging
+    console.log(`Client transport: ${socket.conn.transport.name}`);
+
     // Add error handling for socket events
     socket.on('error', (error) => {
       console.error('Socket error:', error);
@@ -102,7 +112,7 @@ const initializeSocket = (server, allowedOrigins) => {
     Object.keys(users).forEach(userId => {
       const user = users[userId];
       // Check if socket is still connected
-      const socket = io.sockets.sockets.get(user.socketId);
+      const socket = io.sockets.sockets.get(user?.socketId);
       if (!socket) {
         console.log(`Removing stale user: ${userId}`);
         delete users[userId];

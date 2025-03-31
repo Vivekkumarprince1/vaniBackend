@@ -1,0 +1,80 @@
+{
+  "name": "vani",
+  "settings": [
+    {
+      "name": "WEBSITE_NODE_DEFAULT_VERSION",
+      "value": "~18",
+      "slotSetting": false
+    },
+    {
+      "name": "WEBSITE_RUN_FROM_PACKAGE",
+      "value": "1",
+      "slotSetting": false
+    },
+    {
+      "name": "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+      "value": "true",
+      "slotSetting": false
+    },
+    {
+      "name": "WEBSITES_PORT",
+      "value": "2000",
+      "slotSetting": false
+    },
+    {
+      "name": "WEBSITE_WEBSOCKET_ENABLED",
+      "value": "true",
+      "slotSetting": false
+    },
+    {
+      "name": "SCM_COMMAND_IDLE_TIMEOUT",
+      "value": "300",
+      "slotSetting": false
+    },
+    {
+      "name": "SCM_LOGSTREAM_TIMEOUT",
+      "value": "1800",
+      "slotSetting": false
+    },
+    {
+      "name": "WEBSITE_HTTPSCALEV2_ENABLED",
+      "value": "true",
+      "slotSetting": false
+    },
+    {
+      "name": "WEBSITE_HEALTHCHECK_MAXPINGFAILURES",
+      "value": "10",
+      "slotSetting": false
+    },
+    {
+      "name": "WEBSITE_PROACTIVE_AUTOHEAL_ENABLED",
+      "value": "true",
+      "slotSetting": false
+    },
+    {
+      "name": "MONGODB_URI",
+      "value": "mongodb+srv://thevivek151:Prince1%40@cluster0.t9kw5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+      "slotSetting": false
+    },
+    {
+      "name": "ALLOWED_ORIGINS",
+      "value": "https://vani-frontend.vercel.app,https://vani.azurewebsites.net",
+      "slotSetting": false
+    },
+    {
+      "name": "NODE_ENV",
+      "value": "production",
+      "slotSetting": false
+    },
+    {
+      "name": "SOCKET_PING_TIMEOUT",
+      "value": "30000",
+      "slotSetting": false
+    },
+    {
+      "name": "SOCKET_PING_INTERVAL",
+      "value": "25000",
+      "slotSetting": false
+    }
+  ]
+} 

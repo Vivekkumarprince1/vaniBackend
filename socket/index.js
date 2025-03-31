@@ -22,64 +22,35 @@ const rooms = {};
 const initializeSocket = (server, allowedOrigins) => {
   const io = socketIo(server, { 
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-      allowedHeaders: ["x-auth-token"],
+      origin: allowedOrigins,
+      methods: ['GET', 'POST'],
       credentials: true
-    },
-    transports: ['websocket', 'polling'],
-    pingTimeout: 60000,
-    pingInterval: 25000,
-    connectTimeout: 30000,
-    path: '/socket.io',
-    // Add Azure-specific settings
-    maxHttpBufferSize: 1e8, // 100MB for larger payloads
-    upgradeTimeout: 30000, // Longer upgrade timeout for Azure
-    allowUpgrades: true,
-    perMessageDeflate: {
-      threshold: 1024 // Compress data for efficiency
     }
   });
-
-  // Socket activity monitoring
-  setInterval(() => {
-    const connectedSockets = io.sockets.sockets.size;
-    console.log(`[Socket Monitor] Active connections: ${connectedSockets}`);
-  }, 60000);
 
   // Socket.IO middleware for authentication
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     
     if (!token) {
-      console.error('No token provided for socket:', socket.id);
-      return next(new Error('Authentication required'));
+      console.error('No token provided for socket connection');
+      return next(new Error('Authentication error: No token provided'));
     }
     
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.user = {
-        userId: decoded.userId,
-        username: decoded.username,
-        preferredLanguage: decoded.preferredLanguage
-      };
-      console.log('Socket authenticated:', socket.id, 'for user:', decoded.userId);
+      socket.user = decoded;
+      console.log('Socket authenticated for user:', decoded.userId);
       next();
     } catch (err) {
-      console.error('Socket auth error:', err);
-      // Only send a specific authentication error to client, not the full error
-      next(new Error('Invalid authentication'));
+      console.error('Socket authentication error:', err.message);
+      return next(new Error('Authentication error: Invalid token'));
     }
-  });
-
-  // Additional error handling
-  io.engine.on("connection_error", (err) => {
-    console.error('Socket connection error:', err);
   });
 
   // Handle socket connections
   io.on('connection', async (socket) => {
-    console.log('New client connected:', socket.id, 'User:', socket.user?.username || 'Unknown');
+    console.log('New client connected:', socket.id);
     
     // Handle user connection and status
     handleUserConnection(io, socket, users);
@@ -98,29 +69,6 @@ const initializeSocket = (server, allowedOrigins) => {
     
     // Handle disconnect
     handleDisconnect(io, socket, users, rooms);
-    
-    // Send connection acknowledgment to client
-    socket.emit('connectionAcknowledged', { 
-      userId: socket.user.userId,
-      socketId: socket.id,
-      timestamp: new Date().toISOString() 
-    });
-    
-    // Add ping/pong mechanism for connection keep-alive
-    socket.on('ping', (callback) => {
-      if (typeof callback === 'function') {
-        callback({
-          status: 'ok',
-          time: new Date().toISOString(),
-          socketId: socket.id
-        });
-      } else {
-        socket.emit('pong', {
-          status: 'ok',
-          time: new Date().toISOString()
-        });
-      }
-    });
   });
 
   return io;

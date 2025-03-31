@@ -4,83 +4,43 @@
  * @param {Object} socket - Socket connection
  */
 const handleWebRTC = (io, socket) => {
-  // Add handler for getCallParticipantInfo
-  socket.on('getCallParticipantInfo', async (data) => {
-    const { userId } = data;
-    if (!userId) {
-      socket.emit('callError', { message: 'Invalid user ID' });
-      return;
-    }
-
-    // Create participant info object
-    const participantInfo = {
-      id: socket.user.userId,
-      name: socket.user.username,
-      socketId: socket.id,
-      status: 'online',
-      preferredLanguage: socket.user.preferredLanguage || 'en',
-      avatar: socket.user.username?.charAt(0).toUpperCase()
-    };
-
-    // Emit participant info back to requester
-    socket.emit('callParticipantInfo', { participantInfo });
-  });
-
   socket.on('offer', async (data) => {
     const { offer, targetId, type, callerInfo } = data;
     
-    console.log('WebRTC Offer Details:', {
-      from: socket.id,
-      target: targetId,
-      callerInfo,
-      socketUser: socket.user
-    });
-
-    if (!targetId || !offer) {
-      socket.emit('callError', { message: 'Invalid offer data' });
+    console.log('Received offer from socket:', socket.id);
+    console.log('Target socket:', targetId);
+    console.log('Caller info:', callerInfo);
+    
+    if (!offer || !targetId) {
+      console.error('Missing required offer data');
       return;
     }
 
-    // Add better caller info enrichment with fallbacks
+    // Enrich caller info with socket user data
     const enrichedCallerInfo = {
       id: callerInfo?.id || socket.user?.userId,
       name: callerInfo?.name || socket.user?.username,
       socketId: socket.id,
       status: 'online',
-      preferredLanguage: callerInfo?.preferredLanguage || socket.user?.preferredLanguage || 'en',
-      avatar: callerInfo?.avatar || socket.user?.username?.charAt(0).toUpperCase()
+      preferredLanguage: callerInfo?.preferredLanguage || 'en',
+      avatar: callerInfo?.avatar || callerInfo?.name?.charAt(0).toUpperCase()
     };
 
-    // Log the enriched caller info
-    console.log('Enriched caller info:', enrichedCallerInfo);
-    console.log('Recipient socket ID:', targetId);
-
-    try {
-      // First check if the target socket exists
-      const targetSocket = io.sockets.sockets.get(targetId);
-      if (!targetSocket) {
-        console.error(`Target socket ${targetId} not found in active connections`);
-        socket.emit('callError', { message: 'User is not available for calls' });
-        return;
-      }
-
-      console.log(`Emitting incomingCall event to ${targetId}`);
-      
-      // Emit to target with enriched caller info
-      io.to(targetId).emit('incomingCall', {
-        offer,
-        from: socket.id,
-        type,
-        caller: enrichedCallerInfo
-      });
-      
-      // Acknowledge successful offer sending
-      console.log(`Offer sent to ${targetId} successfully`);
-      
-    } catch (error) {
-      console.error('Error sending offer:', error);
-      socket.emit('callError', { message: 'Failed to send call offer' });
+    // Check if target socket exists
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (!targetSocket) {
+      console.error('Target socket not found:', targetId);
+      socket.emit('callError', { message: 'User is not available' });
+      return;
     }
+
+    console.log('Emitting incomingCall to:', targetId);
+    io.to(targetId).emit('incomingCall', {
+      offer,
+      from: socket.id,
+      type,
+      caller: enrichedCallerInfo
+    });
   });
   
   // Enhanced answer handler

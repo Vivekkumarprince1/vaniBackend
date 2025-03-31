@@ -12,33 +12,22 @@ const logConfig = () => {
 
 // CORS configuration
 const getCorsConfig = () => {
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:3000',
-    'https://vani.vercel.app',
-    'https://vani-git-main-vivekkumar.vercel.app',
-    'https://vani1-eccnebbaapfcduav.centralindia-01.azurewebsites.net',
-    // Add additional origins if needed
-    '*'
-  ];
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? ['https://vani.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app', 'https://vani-eccnebbaapfcduav.centralindia-01.azurewebsites.net'] 
+    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
 
   const corsOptions = {
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.warn('Origin not allowed:', origin);
-        // Still allow in production for troubleshooting
-        callback(null, true);
+        console.error('Origin not allowed:', origin);
+        callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Access-Control-Allow-Origin']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
   };
 
   return { allowedOrigins, corsOptions };

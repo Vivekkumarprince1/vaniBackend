@@ -16,31 +16,38 @@ const handleWebRTC = (io, socket) => {
       return;
     }
 
-    // Enrich caller info with socket user data
-    const enrichedCallerInfo = {
-      id: callerInfo?.id || socket.user?.userId,
-      name: callerInfo?.name || socket.user?.username,
-      socketId: socket.id,
-      status: 'online',
-      preferredLanguage: callerInfo?.preferredLanguage || 'en',
-      avatar: callerInfo?.avatar || callerInfo?.name?.charAt(0).toUpperCase()
-    };
+    try {
+      // Enrich caller info with socket user data
+      const enrichedCallerInfo = {
+        id: callerInfo?.id || socket.user?.userId || socket.id,
+        name: callerInfo?.name || socket.user?.username || 'Unknown',
+        socketId: socket.id,
+        status: 'online',
+        preferredLanguage: callerInfo?.preferredLanguage || socket.user?.preferredLanguage || 'en',
+        avatar: callerInfo?.avatar || (callerInfo?.name || socket.user?.username || '?').charAt(0).toUpperCase()
+      };
 
-    // Check if target socket exists
-    const targetSocket = io.sockets.sockets.get(targetId);
-    if (!targetSocket) {
-      console.error('Target socket not found:', targetId);
-      socket.emit('callError', { message: 'User is not available' });
-      return;
+      console.log('Enriched caller info:', enrichedCallerInfo);
+
+      // Check if target socket exists
+      const targetSocket = io.sockets.sockets.get(targetId);
+      if (!targetSocket) {
+        console.error('Target socket not found:', targetId);
+        socket.emit('callError', { message: 'User is not available' });
+        return;
+      }
+
+      console.log('Emitting incomingCall to:', targetId);
+      io.to(targetId).emit('incomingCall', {
+        offer,
+        from: socket.id,
+        type: type || 'video', // Default to video if type is undefined
+        caller: enrichedCallerInfo
+      });
+    } catch (error) {
+      console.error('Error processing offer:', error);
+      socket.emit('callError', { message: 'Error processing call request' });
     }
-
-    console.log('Emitting incomingCall to:', targetId);
-    io.to(targetId).emit('incomingCall', {
-      offer,
-      from: socket.id,
-      type,
-      caller: enrichedCallerInfo
-    });
   });
   
   // Enhanced answer handler

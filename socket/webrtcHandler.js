@@ -17,17 +17,18 @@ const handleWebRTC = (io, socket) => {
       return;
     }
 
-    // Enrich caller info with socket user data - add more defensive coding
+    // DIRECTLY USE CALLER INFO FROM THE CLIENT INSTEAD OF ENRICHING
+    // This fixes the Azure issue where socket.user may be undefined
     const enrichedCallerInfo = {
-      id: callerInfo?.id || (socket.user ? socket.user.userId : 'unknown'),
-      name: callerInfo?.name || (socket.user ? socket.user.username : 'Unknown User'),
+      id: callerInfo.id, 
+      name: callerInfo.name || 'Unknown User',
       socketId: socket.id,
       status: 'online',
-      preferredLanguage: callerInfo?.preferredLanguage || 'en',
-      avatar: callerInfo?.avatar || (callerInfo?.name ? callerInfo.name.charAt(0).toUpperCase() : 'U')
+      preferredLanguage: callerInfo.preferredLanguage || 'en',
+      avatar: callerInfo.avatar || (callerInfo.name ? callerInfo.name.charAt(0).toUpperCase() : 'U')
     };
 
-    console.log('Enriched caller info:', JSON.stringify(enrichedCallerInfo));
+    console.log('Caller info (not enriched with socket.user):', JSON.stringify(enrichedCallerInfo));
 
     // Check if target socket exists
     const targetSocket = io.sockets.sockets.get(targetId);
@@ -58,18 +59,18 @@ const handleWebRTC = (io, socket) => {
     
     console.log('Received answer from socket:', socket.id);
     console.log('Target socket for answer:', targetId);
-    console.log('Receiver info:', receiverInfo);
-    console.log('Socket user info for answer:', socket.user ? JSON.stringify(socket.user) : 'undefined');
+    console.log('Receiver info from client:', receiverInfo);
     
-    // More defensive coding for the answer
+    // DIRECTLY USE RECEIVER INFO FROM CLIENT
+    // This fixes the Azure issue where socket.user may be undefined
     const enrichedReceiverInfo = {
-      id: socket.user ? socket.user.userId : 'unknown',
-      name: socket.user ? socket.user.username : 'Unknown User',
+      id: receiverInfo.id,
+      name: receiverInfo.name || 'Unknown User',
       socketId: socket.id,
-      preferredLanguage: receiverInfo?.preferredLanguage || 'en'
+      preferredLanguage: receiverInfo.preferredLanguage || 'en'
     };
     
-    console.log('Enriched receiver info:', JSON.stringify(enrichedReceiverInfo));
+    console.log('Receiver info (not enriched with socket.user):', JSON.stringify(enrichedReceiverInfo));
     
     // Include receiver info in the answer
     const answerData = {

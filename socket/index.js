@@ -27,7 +27,11 @@ const initializeSocket = (server, allowedOrigins) => {
       allowedHeaders: ["x-auth-token"],
       credentials: true
     },
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    connectTimeout: 30000,
+    path: '/socket.io'
   });
 
   // Socket.IO middleware for authentication
@@ -50,13 +54,19 @@ const initializeSocket = (server, allowedOrigins) => {
       next();
     } catch (err) {
       console.error('Socket auth error:', err);
+      // Only send a specific authentication error to client, not the full error
       next(new Error('Invalid authentication'));
     }
   });
 
+  // Additional error handling
+  io.engine.on("connection_error", (err) => {
+    console.error('Socket connection error:', err);
+  });
+
   // Handle socket connections
   io.on('connection', async (socket) => {
-    console.log('New client connected:', socket.id);
+    console.log('New client connected:', socket.id, 'User:', socket.user?.username || 'Unknown');
     
     // Handle user connection and status
     handleUserConnection(io, socket, users);
@@ -75,6 +85,13 @@ const initializeSocket = (server, allowedOrigins) => {
     
     // Handle disconnect
     handleDisconnect(io, socket, users, rooms);
+    
+    // Send connection acknowledgment to client
+    socket.emit('connectionAcknowledged', { 
+      userId: socket.user.userId,
+      socketId: socket.id,
+      timestamp: new Date().toISOString() 
+    });
   });
 
   return io;

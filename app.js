@@ -35,6 +35,11 @@ app.use((req, res, next) => {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Add a health check endpoint for Azure
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));

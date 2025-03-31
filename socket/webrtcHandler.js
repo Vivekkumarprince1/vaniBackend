@@ -4,7 +4,25 @@
  * @param {Object} socket - Socket connection
  */
 const handleWebRTC = (io, socket) => {
+  // Add connection state tracking
+  let isConnected = false;
+
+  socket.on('connect', () => {
+    console.log('WebRTC socket connected:', socket.id);
+    isConnected = true;
+  });
+
+  socket.on('disconnect', () => {
+    console.log('WebRTC socket disconnected:', socket.id);
+    isConnected = false;
+  });
+
   socket.on('offer', async (data) => {
+    if (!isConnected) {
+      console.error('Socket not connected, cannot process offer');
+      return;
+    }
+
     const { offer, targetId, type, callerInfo } = data;
     
     console.log('Received offer from socket:', socket.id);
@@ -13,14 +31,15 @@ const handleWebRTC = (io, socket) => {
     
     if (!offer || !targetId) {
       console.error('Missing required offer data');
+      socket.emit('callError', { message: 'Missing required offer data' });
       return;
     }
 
     try {
-      // Enrich caller info with socket user data
+      // Validate and enrich caller info
       const enrichedCallerInfo = {
         id: callerInfo?.id || socket.user?.userId || socket.id,
-        name: callerInfo?.name || socket.user?.username || 'Unknown',
+        name: callerInfo?.name || socket.user?.username || 'i am hero',
         socketId: socket.id,
         status: 'online',
         preferredLanguage: callerInfo?.preferredLanguage || socket.user?.preferredLanguage || 'en',
@@ -37,51 +56,126 @@ const handleWebRTC = (io, socket) => {
         return;
       }
 
+      // Validate target socket connection
+      if (!targetSocket.connected) {
+        console.error('Target socket exists but is not connected:', targetId);
+        socket.emit('callError', { message: 'User is not connected' });
+        return;
+      }
+
       console.log('Emitting incomingCall to:', targetId);
-      io.to(targetId).emit('incomingCall', {
+      
+      // Add error handling for emit
+      targetSocket.emit('incomingCall', {
         offer,
         from: socket.id,
-        type: type || 'video', // Default to video if type is undefined
+        type: type || 'video',
         caller: enrichedCallerInfo
+      }, (acknowledgement) => {
+        if (acknowledgement?.error) {
+          console.error('Error sending incomingCall:', acknowledgement.error);
+          socket.emit('callError', { message: 'Failed to send call request' });
+        }
       });
+
     } catch (error) {
       console.error('Error processing offer:', error);
       socket.emit('callError', { message: 'Error processing call request' });
     }
   });
   
-  // Enhanced answer handler
   socket.on('answer', (data) => {
+    if (!isConnected) {
+      console.error('Socket not connected, cannot process answer');
+      return;
+    }
+
     const { answer, targetId, receiverInfo } = data;
     
-    // Include receiver info in the answer
-    io.to(targetId).emit('answer', {
-      answer,
-      from: socket.id,
-      receiverInfo: {
-        id: socket.user.userId,
-        name: socket.user.username,
-        socketId: socket.id,
-        preferredLanguage: receiverInfo?.preferredLanguage || 'en'
+    if (!answer || !targetId) {
+      console.error('Missing required answer data');
+      return;
+    }
+
+    try {
+      // Include receiver info in the answer
+      const targetSocket = io.sockets.sockets.get(targetId);
+      if (!targetSocket) {
+        console.error('Target socket not found for answer:', targetId);
+        return;
       }
-    });
+
+      targetSocket.emit('answer', {
+        answer,
+        from: socket.id,
+        receiverInfo: {
+          id: socket.user?.userId || socket.id,
+          name: socket.user?.username || 'hero',
+          socketId: socket.id,
+          preferredLanguage: receiverInfo?.preferredLanguage || 'en'
+        }
+      });
+    } catch (error) {
+      console.error('Error processing answer:', error);
+    }
   });
   
   socket.on('iceCandidate', (data) => {
+    if (!isConnected) {
+      console.error('Socket not connected, cannot process ICE candidate');
+      return;
+    }
+
     const { candidate, targetId } = data;
-    io.to(targetId).emit('iceCandidate', {
-      candidate,
-      from: socket.id
-    });
+    
+    if (!candidate || !targetId) {
+      console.error('Missing required ICE candidate data');
+      return;
+    }
+
+    try {
+      const targetSocket = io.sockets.sockets.get(targetId);
+      if (!targetSocket) {
+        console.error('Target socket not found for ICE candidate:', targetId);
+        return;
+      }
+
+      targetSocket.emit('iceCandidate', {
+        candidate,
+        from: socket.id
+      });
+    } catch (error) {
+      console.error('Error processing ICE candidate:', error);
+    }
   });
 
-  // New event for call participant information exchange
   socket.on('callParticipantInfo', (data) => {
+    if (!isConnected) {
+      console.error('Socket not connected, cannot process participant info');
+      return;
+    }
+
     const { targetId, participantInfo } = data;
-    io.to(targetId).emit('callParticipantInfo', {
-      participantInfo,
-      from: socket.id
-    });
+    
+    if (!targetId || !participantInfo) {
+      console.error('Missing required participant info data');
+      return;
+    }
+
+    try {
+      const targetSocket = io.sockets.sockets.get(targetId);
+      if (!targetSocket) {
+        console.error('Target socket not found for participant info:', targetId);
+        return;
+      }
+
+      targetSocket.emit('callParticipantInfo', {
+        participantInfo,
+        from: socket.id
+      });
+    } catch (error) {
+      console.error('Error processing participant info:', error);
+    }
   });
 };
 

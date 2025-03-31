@@ -23,6 +23,12 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Routes
+app.use('/',(req,res)=>{
+  res.send("you are on right path");
+});
+app.use('/api',(req,res)=>{
+  res.send("you are on right path api");
+});
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/translator', require('./routes/translator'));

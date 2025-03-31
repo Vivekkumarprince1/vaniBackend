@@ -39,7 +39,7 @@ const handleWebRTC = (io, socket) => {
       // Validate and enrich caller info
       const enrichedCallerInfo = {
         id: callerInfo?.id || socket.user?.userId || socket.id,
-        name: callerInfo?.name || socket.user?.username || 'i am hero',
+        name: callerInfo?.name || socket.user?.username || 'Unknown',
         socketId: socket.id,
         status: 'online',
         preferredLanguage: callerInfo?.preferredLanguage || socket.user?.preferredLanguage || 'en',
@@ -65,12 +65,20 @@ const handleWebRTC = (io, socket) => {
 
       console.log('Emitting incomingCall to:', targetId);
       
-      // Add error handling for emit
+      // Send the offer with caller info in a separate event first
+      targetSocket.emit('callerInfo', enrichedCallerInfo, (acknowledgement) => {
+        if (acknowledgement?.error) {
+          console.error('Error sending caller info:', acknowledgement.error);
+          socket.emit('callError', { message: 'Failed to send caller info' });
+          return;
+        }
+      });
+
+      // Then send the offer
       targetSocket.emit('incomingCall', {
         offer,
         from: socket.id,
-        type: type || 'video',
-        caller: enrichedCallerInfo
+        type: type || 'video'
       }, (acknowledgement) => {
         if (acknowledgement?.error) {
           console.error('Error sending incomingCall:', acknowledgement.error);
@@ -110,7 +118,7 @@ const handleWebRTC = (io, socket) => {
         from: socket.id,
         receiverInfo: {
           id: socket.user?.userId || socket.id,
-          name: socket.user?.username || 'hero',
+          name: socket.user?.username || 'Unknown',
           socketId: socket.id,
           preferredLanguage: receiverInfo?.preferredLanguage || 'en'
         }

@@ -12,17 +12,25 @@ const logConfig = () => {
 
 // CORS configuration
 const getCorsConfig = () => {
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://vani.vercel.app', 'https://vani-git-main-vivekkumar.vercel.app', 'https://vani-eccnebbaapfcduav.centralindia-01.azurewebsites.net'] 
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:3000',
+    'https://vani.vercel.app',
+    'https://vani-git-main-vivekkumar.vercel.app',
+    'https://vani1-eccnebbaapfcduav.centralindia-01.azurewebsites.net'
+  ];
 
   const corsOptions = {
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.error('Origin not allowed:', origin);
-        callback(new Error('Not allowed by CORS'));
+        console.warn('Origin not allowed:', origin);
+        callback(null, true); // Allow all origins in development
       }
     },
     credentials: true,

@@ -7,40 +7,43 @@ const handleWebRTC = (io, socket) => {
   socket.on('offer', async (data) => {
     const { offer, targetId, type, callerInfo } = data;
     
-    console.log('Received offer from socket:', socket.id);
-    console.log('Target socket:', targetId);
-    console.log('Caller info:', callerInfo);
-    
-    if (!offer || !targetId) {
-      console.error('Missing required offer data');
+    console.log('WebRTC Offer Details:', {
+      from: socket.id,
+      target: targetId,
+      callerInfo,
+      socketUser: socket.user
+    });
+
+    if (!targetId || !offer) {
+      socket.emit('callError', { message: 'Invalid offer data' });
       return;
     }
 
-    // Enrich caller info with socket user data
+    // Add better caller info enrichment with fallbacks
     const enrichedCallerInfo = {
       id: callerInfo?.id || socket.user?.userId,
       name: callerInfo?.name || socket.user?.username,
       socketId: socket.id,
       status: 'online',
-      preferredLanguage: callerInfo?.preferredLanguage || 'en',
-      avatar: callerInfo?.avatar || callerInfo?.name?.charAt(0).toUpperCase()
+      preferredLanguage: callerInfo?.preferredLanguage || socket.user?.preferredLanguage || 'en',
+      avatar: callerInfo?.avatar || socket.user?.username?.charAt(0).toUpperCase()
     };
 
-    // Check if target socket exists
-    const targetSocket = io.sockets.sockets.get(targetId);
-    if (!targetSocket) {
-      console.error('Target socket not found:', targetId);
-      socket.emit('callError', { message: 'User is not available' });
-      return;
-    }
+    // Log the enriched caller info
+    console.log('Enriched caller info:', enrichedCallerInfo);
 
-    console.log('Emitting incomingCall to:', targetId);
-    io.to(targetId).emit('incomingCall', {
-      offer,
-      from: socket.id,
-      type,
-      caller: enrichedCallerInfo
-    });
+    try {
+      // Emit to target with enriched caller info
+      io.to(targetId).emit('incomingCall', {
+        offer,
+        from: socket.id,
+        type,
+        caller: enrichedCallerInfo
+      });
+    } catch (error) {
+      console.error('Error sending offer:', error);
+      socket.emit('callError', { message: 'Failed to send call offer' });
+    }
   });
   
   // Enhanced answer handler

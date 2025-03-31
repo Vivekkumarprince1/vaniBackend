@@ -22,10 +22,12 @@ const rooms = {};
 const initializeSocket = (server, allowedOrigins) => {
   const io = socketIo(server, { 
     cors: {
-      origin: allowedOrigins,
-      methods: ['GET', 'POST'],
+      origin: "*",
+      methods: ["GET", "POST"],
+      allowedHeaders: ["x-auth-token"],
       credentials: true
-    }
+    },
+    transports: ['websocket', 'polling']
   });
 
   // Socket.IO middleware for authentication
@@ -33,18 +35,22 @@ const initializeSocket = (server, allowedOrigins) => {
     const token = socket.handshake.auth.token;
     
     if (!token) {
-      console.error('No token provided for socket connection');
-      return next(new Error('Authentication error: No token provided'));
+      console.error('No token provided for socket:', socket.id);
+      return next(new Error('Authentication required'));
     }
     
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.user = decoded;
-      console.log('Socket authenticated for user:', decoded.userId);
+      socket.user = {
+        userId: decoded.userId,
+        username: decoded.username,
+        preferredLanguage: decoded.preferredLanguage
+      };
+      console.log('Socket authenticated:', socket.id, 'for user:', decoded.userId);
       next();
     } catch (err) {
-      console.error('Socket authentication error:', err.message);
-      return next(new Error('Authentication error: Invalid token'));
+      console.error('Socket auth error:', err);
+      next(new Error('Invalid authentication'));
     }
   });
 

@@ -20,27 +20,32 @@ const rooms = {};
  * @returns {Object} - Configured Socket.IO instance
  */
 const initializeSocket = (server, allowedOrigins) => {
+  console.log('Initializing Socket.IO with allowed origins:', allowedOrigins);
+  
   const io = socketIo(server, { 
     cors: {
-      origin: allowedOrigins,
-      methods: ['GET', 'POST'],
-      credentials: true
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+          callback(null, true);
+        } else {
+          console.warn(`Origin ${origin} not allowed by Socket.IO CORS policy`);
+          callback(null, true); // Allow all origins in production
+        }
+      },
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
     },
-    // Production optimizations
+    // Connection settings
     transports: ['websocket', 'polling'],
-    pingTimeout: 60000,
+    maxHttpBufferSize: 5e6, // 5MB
+    pingTimeout: 30000,
     pingInterval: 25000,
-    connectTimeout: 30000,
-    // Error handling
-    handlePreflightRequest: (req, res) => {
-      res.writeHead(200, {
-        'Access-Control-Allow-Origin': allowedOrigins.join(','),
-        'Access-Control-Allow-Methods': 'GET,POST',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Credentials': true
-      });
-      res.end();
-    }
+    upgradeTimeout: 10000,
+    // Allow reconnections
+    allowUpgrades: true,
+    serveClient: false
   });
 
   // Socket.IO middleware for authentication
@@ -67,7 +72,7 @@ const initializeSocket = (server, allowedOrigins) => {
   io.on('connection', async (socket) => {
     console.log('New client connected:', socket.id);
     
-    // Set up error handling for socket
+    // Add error handling for socket events
     socket.on('error', (error) => {
       console.error('Socket error:', error);
     });
@@ -91,10 +96,19 @@ const initializeSocket = (server, allowedOrigins) => {
     handleDisconnect(io, socket, users, rooms);
   });
 
-  // Server-side error handling
-  io.engine.on('connection_error', (err) => {
-    console.error('Connection error:', err);
-  });
+  // Periodically clean up stale connections (every 5 minutes)
+  setInterval(() => {
+    console.log('Cleaning up stale connections');
+    Object.keys(users).forEach(userId => {
+      const user = users[userId];
+      // Check if socket is still connected
+      const socket = io.sockets.sockets.get(user.socketId);
+      if (!socket) {
+        console.log(`Removing stale user: ${userId}`);
+        delete users[userId];
+      }
+    });
+  }, 5 * 60 * 1000);
 
   return io;
 };

@@ -5,19 +5,18 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app.js",
+    "start": "NODE_ENV=production node app.js",
     "dev": "nodemon app.js",
     "migrate-chat": "node utils/migrateChatData.js",
     "migrate-users": "node utils/migrateUserData.js",
     "lint": "eslint .",
-    "vercel-build": "echo 'Building Vani Backend'",
-    "prestart": "echo 'Starting Vani Backend in production mode'"
+    "build": "echo 'Backend build process complete'",
+    "postinstall": "npm run build"
   },
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=16.0.0"
   },
-  "keywords": ["chat", "real-time", "translation", "socket.io", "api"],
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -25,9 +24,11 @@
     "@vitalets/google-translate-api": "^9.2.0",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
     "microsoft-cognitiveservices-speech-sdk": "^1.43.0",
     "mongoose": "^7.6.3",
@@ -36,6 +37,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "eslint": "^8.56.0",
     "nodemon": "^3.0.1"
   }
 }

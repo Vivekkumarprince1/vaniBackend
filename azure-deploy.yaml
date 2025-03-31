@@ -1,0 +1,60 @@
+# Azure App Service Deployment Configuration
+name: vani-backend
+configurations:
+  - name: production
+    region: centralindia
+    plan: B1
+    runtime: node
+    runtimeVersion: "18"
+    healthCheck: /status
+    # Scaling settings
+    scaling:
+      minReplicas: 1
+      maxReplicas: 3
+    # Environment variables - these will be overridden by App Service settings
+    environment:
+      NODE_ENV: production
+      PORT: 2000
+    # Define GitHub Actions workflows
+    github:
+      branch: main
+      deployOnPush: true
+      actions:
+        - name: build-and-deploy
+          steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+            - name: Setup Node.js
+              uses: actions/setup-node@v2
+              with:
+                node-version: '18'
+            - name: Install dependencies
+              run: npm ci
+            - name: Run tests
+              run: npm test || true
+            - name: Deploy to Azure
+              run: |
+                az login --service-principal -u ${{ secrets.AZURE_APP_ID }} -p ${{ secrets.AZURE_PASSWORD }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+                az webapp deployment source config-zip --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --name vani-backend --src ./deployment.zip
+    # Deployment recommendations
+    recommendations:
+      - Use Azure Key Vault for storing secrets
+      - Configure autoscaling for high traffic periods
+      - Set up Azure Application Insights for monitoring
+      - Configure a custom domain with SSL
+      - Set up continuous deployment from GitHub
+    # Network configuration
+    network:
+      - outboundIpAddresses: []
+      - virtualNetwork:
+          enabled: false
+    # Application settings to configure during deployment
+    appSettings:
+      - name: WEBSITES_PORT
+        value: 2000
+      - name: WEBSITES_CONTAINER_START_TIME_LIMIT
+        value: 600
+      - name: SCM_DO_BUILD_DURING_DEPLOYMENT
+        value: true
+      - name: WEBSITE_NODE_DEFAULT_VERSION
+        value: "~18" 

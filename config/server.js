@@ -6,35 +6,53 @@ dotenv.config();
 // Log important configurations on startup
 const logConfig = () => {
   console.log('Environment Configuration:');
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('PORT:', process.env.PORT);
+  console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
+  console.log('PORT:', process.env.PORT || 2000);
+  console.log('MongoDB:', process.env.MONGO_URI ? 'Configured' : 'Not Configured');
+  console.log('Azure Translator:', process.env.AZURE_TRANSLATOR_KEY ? 'Configured' : 'Not Configured');
+  console.log('Azure Speech:', process.env.AZURE_SPEECH_KEY ? 'Configured' : 'Not Configured');
 };
 
 // CORS configuration
 const getCorsConfig = () => {
-  const allowedOrigins = [
-    // Production domains
+  // Define base allowed origins - add any new domains here
+  const baseAllowedOrigins = [
     'https://vani-frontend.vercel.app',
     'https://vani.azurewebsites.net',
-    'https://vani-frontend.vercel.app',
-    // Development domains
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:2000',
+    'http://localhost:5173', 
+    'http://localhost:5174', 
     'http://127.0.0.1:5173',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:2000'
+    'http://127.0.0.1:5174'
   ];
+  
+  // Process environment variable with additional origins if defined
+  let additionalOrigins = [];
+  if (process.env.ALLOWED_ORIGINS) {
+    try {
+      additionalOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+      console.log('Additional origins:', additionalOrigins);
+    } catch (error) {
+      console.error('Error parsing ALLOWED_ORIGINS:', error);
+    }
+  }
+  
+  // Combine all origins
+  const allowedOrigins = [...baseAllowedOrigins, ...additionalOrigins];
+  console.log('Allowed origins:', allowedOrigins);
 
   const corsOptions = {
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl requests)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+      // In production, we should strictly check origins
+      if (process.env.NODE_ENV === 'production') {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.warn(`CORS blocked request from origin: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
       } else {
-        console.log('Origin rejected by CORS policy:', origin);
-        console.log('Allowed origins:', allowedOrigins);
-        callback(null, true); // Temporarily allow all origins in case of misconfiguration
+        // In development, we're more permissive
+        callback(null, true);
       }
     },
     credentials: true,

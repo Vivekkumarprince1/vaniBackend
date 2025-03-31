@@ -4,6 +4,28 @@
  * @param {Object} socket - Socket connection
  */
 const handleWebRTC = (io, socket) => {
+  // Add handler for getCallParticipantInfo
+  socket.on('getCallParticipantInfo', async (data) => {
+    const { userId } = data;
+    if (!userId) {
+      socket.emit('callError', { message: 'Invalid user ID' });
+      return;
+    }
+
+    // Create participant info object
+    const participantInfo = {
+      id: socket.user.userId,
+      name: socket.user.username,
+      socketId: socket.id,
+      status: 'online',
+      preferredLanguage: socket.user.preferredLanguage || 'en',
+      avatar: socket.user.username?.charAt(0).toUpperCase()
+    };
+
+    // Emit participant info back to requester
+    socket.emit('callParticipantInfo', { participantInfo });
+  });
+
   socket.on('offer', async (data) => {
     const { offer, targetId, type, callerInfo } = data;
     

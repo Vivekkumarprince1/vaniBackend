@@ -31,8 +31,21 @@ const initializeSocket = (server, allowedOrigins) => {
     pingTimeout: 60000,
     pingInterval: 25000,
     connectTimeout: 30000,
-    path: '/socket.io'
+    path: '/socket.io',
+    // Add Azure-specific settings
+    maxHttpBufferSize: 1e8, // 100MB for larger payloads
+    upgradeTimeout: 30000, // Longer upgrade timeout for Azure
+    allowUpgrades: true,
+    perMessageDeflate: {
+      threshold: 1024 // Compress data for efficiency
+    }
   });
+
+  // Socket activity monitoring
+  setInterval(() => {
+    const connectedSockets = io.sockets.sockets.size;
+    console.log(`[Socket Monitor] Active connections: ${connectedSockets}`);
+  }, 60000);
 
   // Socket.IO middleware for authentication
   io.use((socket, next) => {
@@ -91,6 +104,22 @@ const initializeSocket = (server, allowedOrigins) => {
       userId: socket.user.userId,
       socketId: socket.id,
       timestamp: new Date().toISOString() 
+    });
+    
+    // Add ping/pong mechanism for connection keep-alive
+    socket.on('ping', (callback) => {
+      if (typeof callback === 'function') {
+        callback({
+          status: 'ok',
+          time: new Date().toISOString(),
+          socketId: socket.id
+        });
+      } else {
+        socket.emit('pong', {
+          status: 'ok',
+          time: new Date().toISOString()
+        });
+      }
     });
   });
 

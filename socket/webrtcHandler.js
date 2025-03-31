@@ -53,8 +53,19 @@ const handleWebRTC = (io, socket) => {
 
     // Log the enriched caller info
     console.log('Enriched caller info:', enrichedCallerInfo);
+    console.log('Recipient socket ID:', targetId);
 
     try {
+      // First check if the target socket exists
+      const targetSocket = io.sockets.sockets.get(targetId);
+      if (!targetSocket) {
+        console.error(`Target socket ${targetId} not found in active connections`);
+        socket.emit('callError', { message: 'User is not available for calls' });
+        return;
+      }
+
+      console.log(`Emitting incomingCall event to ${targetId}`);
+      
       // Emit to target with enriched caller info
       io.to(targetId).emit('incomingCall', {
         offer,
@@ -62,6 +73,10 @@ const handleWebRTC = (io, socket) => {
         type,
         caller: enrichedCallerInfo
       });
+      
+      // Acknowledge successful offer sending
+      console.log(`Offer sent to ${targetId} successfully`);
+      
     } catch (error) {
       console.error('Error sending offer:', error);
       socket.emit('callError', { message: 'Failed to send call offer' });

@@ -25,6 +25,21 @@ const initializeSocket = (server, allowedOrigins) => {
       origin: allowedOrigins,
       methods: ['GET', 'POST'],
       credentials: true
+    },
+    // Production optimizations
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    connectTimeout: 30000,
+    // Error handling
+    handlePreflightRequest: (req, res) => {
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': allowedOrigins.join(','),
+        'Access-Control-Allow-Methods': 'GET,POST',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Credentials': true
+      });
+      res.end();
     }
   });
 
@@ -52,6 +67,11 @@ const initializeSocket = (server, allowedOrigins) => {
   io.on('connection', async (socket) => {
     console.log('New client connected:', socket.id);
     
+    // Set up error handling for socket
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+    
     // Handle user connection and status
     handleUserConnection(io, socket, users);
     
@@ -69,6 +89,11 @@ const initializeSocket = (server, allowedOrigins) => {
     
     // Handle disconnect
     handleDisconnect(io, socket, users, rooms);
+  });
+
+  // Server-side error handling
+  io.engine.on('connection_error', (err) => {
+    console.error('Connection error:', err);
   });
 
   return io;

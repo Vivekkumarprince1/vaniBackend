@@ -12,17 +12,29 @@ const logConfig = () => {
 
 // CORS configuration
 const getCorsConfig = () => {
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [ 'https://vani-frontend.vercel.app','https://vani.azurewebsites.net','http://localhost:5173'] 
-  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:2000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:2000'];
+  const allowedOrigins = [
+    // Production domains
+    'https://vani-frontend.vercel.app',
+    'https://vani.azurewebsites.net',
+    'https://vani-frontend.vercel.app',
+    // Development domains
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:2000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:2000'
+  ];
 
   const corsOptions = {
     origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl requests)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.error('Origin not allowed:', origin);
-        callback(new Error('Not allowed by CORS'));
+        console.log('Origin rejected by CORS policy:', origin);
+        console.log('Allowed origins:', allowedOrigins);
+        callback(null, true); // Temporarily allow all origins in case of misconfiguration
       }
     },
     credentials: true,

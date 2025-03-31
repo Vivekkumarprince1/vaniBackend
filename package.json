@@ -6,11 +6,18 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node app.js",
+    "dev": "nodemon app.js",
     "migrate-chat": "node utils/migrateChatData.js",
     "migrate-users": "node utils/migrateUserData.js",
-    "dev": "nodemon app.js"
+    "lint": "eslint .",
+    "vercel-build": "echo 'Building Vani Backend'",
+    "prestart": "echo 'Starting Vani Backend in production mode'"
   },
-  "keywords": [],
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": ["chat", "real-time", "translation", "socket.io", "api"],
   "author": "",
   "license": "ISC",
   "dependencies": {

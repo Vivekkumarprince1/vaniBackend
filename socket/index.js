@@ -42,15 +42,15 @@ const initializeSocket = (server, allowedOrigins) => {
     // Connection settings - adjusted for Azure
     transports: ['websocket', 'polling'],
     allowUpgrades: true,
-    upgradeTimeout: 30000, // Increased from 20000 to allow more time for upgrades
-    pingTimeout: parseInt(process.env.SOCKET_PING_TIMEOUT || 60000), // Increased from 30000
+    upgradeTimeout: 20000, // Longer upgrade timeout for Azure
+    pingTimeout: parseInt(process.env.SOCKET_PING_TIMEOUT || 30000),
     pingInterval: parseInt(process.env.SOCKET_PING_INTERVAL || 25000),
     maxHttpBufferSize: 5e6, // 5MB
     // Enable for Azure web app
     perMessageDeflate: {
       threshold: 32768 // Only compress messages larger than this
     },
-    connectTimeout: 45000, // Increased from 30000
+    connectTimeout: 30000,
     // Disable serving client code (client should bring its own)
     serveClient: false
   });

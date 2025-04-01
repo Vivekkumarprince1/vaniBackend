@@ -27,17 +27,6 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/translator', require('./routes/translator'));
 
-// Health check endpoint
-app.get('/status', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
 // Connect to database and start server
 connectDB()
   .then(() => {

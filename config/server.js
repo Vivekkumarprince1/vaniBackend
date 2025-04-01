@@ -19,6 +19,7 @@ const getCorsConfig = () => {
   const baseAllowedOrigins = [
     'https://vani-frontend.vercel.app',
     'https://vani.azurewebsites.net',
+    'https://vani1.azurewebsites.net',
     'http://localhost:5173', 
     'http://localhost:5174', 
     'http://127.0.0.1:5173',
@@ -42,7 +43,6 @@ const getCorsConfig = () => {
 
   const corsOptions = {
     origin: (origin, callback) => {
-      // In production, we should strictly check origins
       if (process.env.NODE_ENV === 'production') {
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);

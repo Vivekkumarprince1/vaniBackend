@@ -1,4 +1,7 @@
 const sdk = require('microsoft-cognitiveservices-speech-sdk');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 // Azure Speech Service configuration
 const SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
@@ -16,10 +19,10 @@ if (!SPEECH_KEY || !SPEECH_REGION) {
   console.error('Azure Speech Service credentials not configured!');
 }
 
-// Language to voice mapping
+// Updated language to voice mapping with more voices
 const voiceMap = {
   'en': 'en-US-JennyNeural',
-  'hi': 'hi-IN-MadhurNeural',
+  'hi': 'hi-IN-SwaraNeural',
   'es': 'es-ES-ElviraNeural',
   'fr': 'fr-FR-DeniseNeural',
   'de': 'de-DE-KatjaNeural',
@@ -28,7 +31,34 @@ const voiceMap = {
   'ko': 'ko-KR-SunHiNeural',
   'pt': 'pt-BR-FranciscaNeural',
   'ru': 'ru-RU-SvetlanaNeural',
-  'zh': 'zh-CN-XiaoxiaoNeural'
+  'zh': 'zh-CN-XiaoxiaoNeural',
+  'ar': 'ar-SA-ZariyahNeural',
+  'cs': 'cs-CZ-VlastaNeural',
+  'da': 'da-DK-ChristelNeural',
+  'nl': 'nl-NL-ColetteNeural',
+  'fi': 'fi-FI-NooraNeural',
+  'el': 'el-GR-AthinaNeural',
+  'he': 'he-IL-HilaNeural',
+  'hu': 'hu-HU-NoemiNeural',
+  'id': 'id-ID-GadisNeural',
+  'ms': 'ms-MY-YasminNeural',
+  'nb': 'nb-NO-IselinNeural',
+  'pl': 'pl-PL-ZofiaNeural',
+  'ro': 'ro-RO-AlinaNeural',
+  'sk': 'sk-SK-ViktoriaNeural',
+  'sl': 'sl-SI-PetraNeural',
+  'sv': 'sv-SE-SofieNeural',
+  'ta': 'ta-IN-PallaviNeural',
+  'te': 'te-IN-ShrutiNeural',
+  'th': 'th-TH-AcharaNeural',
+  'tr': 'tr-TR-EmelNeural',
+  'uk': 'uk-UA-PolinaNeural',
+  'vi': 'vi-VN-HoaiMyNeural',
+  'af': 'af-ZA-AdriNeural',
+  'bg': 'bg-BG-KalinaNeural',
+  'fil': 'fil-PH-BlessicaNeural',
+  'ca': 'ca-ES-AlbaNeural',
+  'cy': 'cy-GB-NiaNeural'
 };
 
 /**
@@ -37,8 +67,49 @@ const voiceMap = {
  * @returns {string|null} - Corresponding voice name or null if not found
  */
 const getVoiceFromLanguage = (languageCode) => {
+  if (!languageCode) return null;
+  
+  // Extract the first part of the language code (e.g., 'en' from 'en-US')
   const code = languageCode.toLowerCase().split('-')[0];
   return voiceMap[code] || null;
+};
+
+/**
+ * Testing the Azure Speech Service connection
+ * Returns true if connection is successful, false otherwise
+ */
+const testAzureSpeechConnection = async () => {
+  try {
+    if (!SPEECH_KEY || !SPEECH_REGION) {
+      console.error('Azure Speech Service credentials not configured for connection test');
+      return false;
+    }
+
+    const speechConfig = sdk.SpeechConfig.fromSubscription(SPEECH_KEY, SPEECH_REGION);
+    speechConfig.speechSynthesisVoiceName = 'en-US-JennyNeural';
+    
+    // Create a simple test synthesizer
+    const synthesizer = new sdk.SpeechSynthesizer(speechConfig);
+    
+    // Test with a very short text
+    const result = await new Promise((resolve, reject) => {
+      synthesizer.speakTextAsync('Test', 
+        result => {
+          synthesizer.close();
+          resolve(result);
+        },
+        error => {
+          synthesizer.close();
+          reject(error);
+        }
+      );
+    });
+    
+    return result && result.reason === sdk.ResultReason.SynthesizingAudioCompleted;
+  } catch (error) {
+    console.error('Azure Speech Service connection test failed:', error);
+    return false;
+  }
 };
 
 /**
@@ -67,6 +138,20 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
   let attempts = 0;
   let lastError = null;
 
+  // Pre-test Azure connection if this is the first attempt
+  if (attempts === 0) {
+    try {
+      const connectionOk = await testAzureSpeechConnection();
+      if (!connectionOk) {
+        console.warn('Azure Speech Service connection test failed before synthesis');
+      } else {
+        console.log('Azure Speech Service connection test successful');
+      }
+    } catch (error) {
+      console.error('Error testing Azure connection:', error);
+    }
+  }
+
   while (attempts < maxRetries) {
     try {
       console.log(`Text-to-speech attempt ${attempts + 1}/${maxRetries}:`, {
@@ -80,20 +165,31 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
       }
 
       const speechConfig = sdk.SpeechConfig.fromSubscription(SPEECH_KEY, SPEECH_REGION);
-      const voiceName = getVoiceFromLanguage(targetLanguage);
+      
+      // Explicitly use the global endpoint to avoid region-specific issues
+      speechConfig.setServiceProperty(
+        "endpoint", 
+        SPEECH_ENDPOINT,
+        sdk.ServicePropertyChannel.UriQueryParameter
+      );
+      
+      // Standardize the target language code (to support both 'en' and 'en-US' formats)
+      const standardizedLanguage = targetLanguage || 'en-US';
+      const voiceName = getVoiceFromLanguage(standardizedLanguage);
       
       if (!voiceName) {
-        console.warn(`No voice found for language: ${targetLanguage}, falling back to English`);
+        console.warn(`No voice found for language: ${standardizedLanguage}, falling back to English`);
         speechConfig.speechSynthesisVoiceName = 'en-US-JennyNeural';
       } else {
         speechConfig.speechSynthesisVoiceName = voiceName;
       }
       
-      // Set audio format directly without using AudioOutputFormat
+      // Set audio format to WAV (more reliable)
       speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm;
       
-      // Create temp file with unique name
-      const tempFileName = `temp_${Date.now()}.wav`;
+      // Create temp file with unique name in the OS temp directory
+      const tempDir = os.tmpdir();
+      const tempFileName = path.join(tempDir, `tts_temp_${Date.now()}.wav`);
       const audioConfig = sdk.AudioConfig.fromAudioFileOutput(tempFileName);
       
       // Create synthesizer
@@ -105,44 +201,80 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
           reject(new Error('Text-to-speech operation timed out'));
         }, 30000);
 
-        // Use SSML for better control
+        // Determine the SSML language code
+        const ssmlLangCode = standardizedLanguage.includes('-') ? 
+                           standardizedLanguage : 
+                           (standardizedLanguage + '-' + standardizedLanguage.toUpperCase());
+
+        // Use simpler SSML for better compatibility
         const ssml = `
-          <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${targetLanguage}">
+          <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${ssmlLangCode}">
             <voice name="${speechConfig.speechSynthesisVoiceName}">
               ${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
             </voice>
           </speak>
         `;
 
+        // Log SSML for debugging
+        console.log('Using SSML:', ssml.trim());
+        
+        // Register listeners for detailed diagnostics
+        synthesizer.synthesisStarted = (s, e) => {
+          console.log('Synthesis started:', e);
+        };
+        
+        synthesizer.synthesizing = (s, e) => {
+          console.log('Synthesizing...', e?.audioLength || 0, 'bytes processed');
+        };
+        
+        synthesizer.synthesisCompleted = (s, e) => {
+          console.log('Synthesis completed:', e?.audioLength || 0, 'bytes total');
+        };
+
         synthesizer.speakSsmlAsync(
           ssml,
           result => {
             clearTimeout(timeoutId);
-            synthesizer.close();
             
             if (result) {
               console.log('Synthesis result:', {
                 resultId: result.resultId,
-                audioLength: result.audioData?.length,
                 reason: result.reason,
+                resultReason: sdk.ResultReason[result.reason],
+                audioLength: result.audioData?.length || 0,
                 state: result.privResult?.privSynthesisStatus
               });
             }
 
+            synthesizer.close();
+
             // Read the audio file that was just created
             try {
-              const fs = require('fs');
               if (fs.existsSync(tempFileName)) {
+                const stats = fs.statSync(tempFileName);
+                console.log(`Temp file created: ${tempFileName}, size: ${stats.size} bytes`);
+                
+                if (stats.size === 0) {
+                  fs.unlinkSync(tempFileName);
+                  reject(new Error('Generated audio file is empty (0 bytes)'));
+                  return;
+                }
+                
                 const audioData = fs.readFileSync(tempFileName);
                 console.log(`Audio synthesized successfully: ${audioData.length} bytes`);
                 
                 // Clean up the temporary file
                 fs.unlinkSync(tempFileName);
                 
-                resolve(audioData);
+                // Only resolve if we actually have audio data
+                if (audioData && audioData.length > 0) {
+                  resolve(audioData);
+                } else {
+                  reject(new Error('Generated audio data is empty after reading file'));
+                }
               } else {
-                console.error('Audio file was not created');
-                reject(new Error('Audio file was not created'));
+                console.error('Audio file was not created:', tempFileName);
+                reject(new Error(`Audio file was not created at ${tempFileName}`));
               }
             } catch (fileError) {
               console.error('Error reading audio file:', fileError);
@@ -158,6 +290,16 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
               details: error.details
             });
             synthesizer.close();
+            
+            // Try to clean up temp file if it exists
+            try {
+              if (fs.existsSync(tempFileName)) {
+                fs.unlinkSync(tempFileName);
+              }
+            } catch (e) {
+              console.error('Error cleaning up temp file:', e);
+            }
+            
             reject(error);
           }
         );
@@ -177,12 +319,14 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
         const backoffDelay = Math.min(1000 * Math.pow(2, attempts), 8000);
         console.log(`Retrying in ${backoffDelay}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoffDelay));
-        continue;
+      } else {
+        throw lastError || new Error('Text-to-speech failed after multiple attempts');
       }     
     }
   }
 };
 
 module.exports = {
-  textToSpeech
+  textToSpeech,
+  testAzureSpeechConnection
 };

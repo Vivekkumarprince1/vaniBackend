@@ -129,64 +129,91 @@ const translateSpeech = async (audioData, sourceLanguage, targetLanguage) => {
 
     // 3. Convert translated text to speech
     let translatedAudio;
-    try {
-      // Check if text is too short for TTS - add a period if needed
-      if (translatedText.length < 3 && !translatedText.match(/[.!?]$/)) {
-        translatedText = translatedText + '.';
-        console.log('Added period to short text for better TTS results');
+    let ttsAttempts = 0;
+    const maxTtsAttempts = 2; // Maximum attempts for text-to-speech
+
+    while (ttsAttempts < maxTtsAttempts && !translatedAudio) {
+      try {
+        // Check if text is too short for TTS - add a period if needed
+        if (translatedText.length < 3 && !translatedText.match(/[.!?]$/)) {
+          translatedText = translatedText + '.';
+          console.log('Added period to short text for better TTS results');
+        }
+        
+        // If this is a retry, add some simple text to ensure we get a response
+        if (ttsAttempts > 0) {
+          // Add greeting at the beginning to ensure we get some audio
+          console.log('Using fallback approach with simplified text for TTS');
+          const simplifiedText = `${translatedText}`;
+          translatedAudio = await textToSpeech(simplifiedText, targetLanguage);
+        } else {
+          translatedAudio = await textToSpeech(translatedText, targetLanguage);
+        }
+        
+        // Validate the generated audio
+        if (!translatedAudio || !(translatedAudio instanceof Buffer)) {
+          throw new Error('Generated audio is empty or invalid');
+        }
+        
+        if (translatedAudio.length < 44) {
+          throw new Error(`Generated audio too small: ${translatedAudio.length} bytes`);
+        }
+        
+        // Verify WAV header (first 4 bytes should be "RIFF")
+        const header = translatedAudio.slice(0, 4).toString('ascii');
+        if (header !== 'RIFF') {
+          console.warn('Generated audio does not have a valid WAV header');
+          
+          // Create a minimal WAV header
+          const sampleRate = 16000; // Azure TTS uses 16kHz
+          const numChannels = 1;    // Mono
+          const bitsPerSample = 16; // 16-bit PCM
+          
+          const wavHeader = Buffer.alloc(44);
+          
+          // "RIFF" chunk descriptor
+          wavHeader.write('RIFF', 0);
+          wavHeader.writeUInt32LE(36 + translatedAudio.length, 4);
+          wavHeader.write('WAVE', 8);
+          
+          // "fmt " sub-chunk
+          wavHeader.write('fmt ', 12);
+          wavHeader.writeUInt32LE(16, 16); // fmt chunk size
+          wavHeader.writeUInt16LE(1, 20);  // PCM format
+          wavHeader.writeUInt16LE(numChannels, 22);
+          wavHeader.writeUInt32LE(sampleRate, 24);
+          wavHeader.writeUInt32LE(sampleRate * numChannels * bitsPerSample / 8, 28); // byte rate
+          wavHeader.writeUInt16LE(numChannels * bitsPerSample / 8, 32); // block align
+          wavHeader.writeUInt16LE(bitsPerSample, 34);
+          
+          // "data" sub-chunk
+          wavHeader.write('data', 36);
+          wavHeader.writeUInt32LE(translatedAudio.length, 40);
+          
+          // Combine header and audio data
+          translatedAudio = Buffer.concat([wavHeader, translatedAudio]);
+          console.log('Fixed audio with proper WAV header');
+        }
+        
+        console.log('Text-to-speech successful, audio size:', translatedAudio.length);
+        
+      } catch (speechError) {
+        console.error(`Text-to-speech attempt ${ttsAttempts + 1} failed:`, speechError);
+        ttsAttempts++;
+        
+        // If we've tried all attempts and still failed
+        if (ttsAttempts >= maxTtsAttempts) {
+          return { 
+            error: `Failed to convert translated text to speech after ${maxTtsAttempts} attempts: ${speechError.message || 'Unknown error'}`, 
+            text: { original: originalText, translated: translatedText },
+            audio: null
+          };
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log(`Retrying text-to-speech, attempt ${ttsAttempts + 1}/${maxTtsAttempts}`);
       }
-      
-      translatedAudio = await textToSpeech(translatedText, targetLanguage);
-      
-      // Validate the generated audio
-      if (!translatedAudio || !(translatedAudio instanceof Buffer) || translatedAudio.length < 44) {
-        throw new Error('Generated audio is empty or invalid');
-      }
-      
-      // Verify WAV header (first 4 bytes should be "RIFF")
-      const header = translatedAudio.slice(0, 4).toString('ascii');
-      if (header !== 'RIFF') {
-        console.warn('Generated audio does not have a valid WAV header');
-        
-        // Create a minimal WAV header
-        const sampleRate = 16000; // Azure TTS uses 16kHz
-        const numChannels = 1;    // Mono
-        const bitsPerSample = 16; // 16-bit PCM
-        
-        const wavHeader = Buffer.alloc(44);
-        
-        // "RIFF" chunk descriptor
-        wavHeader.write('RIFF', 0);
-        wavHeader.writeUInt32LE(36 + translatedAudio.length, 4);
-        wavHeader.write('WAVE', 8);
-        
-        // "fmt " sub-chunk
-        wavHeader.write('fmt ', 12);
-        wavHeader.writeUInt32LE(16, 16); // fmt chunk size
-        wavHeader.writeUInt16LE(1, 20);  // PCM format
-        wavHeader.writeUInt16LE(numChannels, 22);
-        wavHeader.writeUInt32LE(sampleRate, 24);
-        wavHeader.writeUInt32LE(sampleRate * numChannels * bitsPerSample / 8, 28); // byte rate
-        wavHeader.writeUInt16LE(numChannels * bitsPerSample / 8, 32); // block align
-        wavHeader.writeUInt16LE(bitsPerSample, 34);
-        
-        // "data" sub-chunk
-        wavHeader.write('data', 36);
-        wavHeader.writeUInt32LE(translatedAudio.length, 40);
-        
-        // Combine header and audio data
-        translatedAudio = Buffer.concat([wavHeader, translatedAudio]);
-        console.log('Fixed audio with proper WAV header');
-      }
-      
-      console.log('Text-to-speech successful, audio size:', translatedAudio.length);
-    } catch (speechError) {
-      console.error('Text-to-speech error:', speechError);
-      return { 
-        error: `Failed to convert translated text to speech: ${speechError.message || 'Unknown error'}`, 
-        text: { original: originalText, translated: translatedText },
-        audio: null
-      };
     }
 
     return { 

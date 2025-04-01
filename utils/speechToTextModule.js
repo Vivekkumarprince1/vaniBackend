@@ -9,9 +9,9 @@ const SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
 const SPEECH_REGION = process.env.AZURE_SPEECH_REGION;
 
 // Log configuration on startup (with masked key for security)
-console.log('Azure Speech Service Configuration:');
-console.log('Region:', SPEECH_REGION);
-console.log('Key:', SPEECH_KEY ? '****' + SPEECH_KEY.slice(-4) : 'Not configured');
+// console.log('Azure Speech Service Configuration:');
+// console.log('Region:', SPEECH_REGION);
+// console.log('Key:', SPEECH_KEY ? '****' + SPEECH_KEY.slice(-4) : 'Not configured');
 
 // Language code mapping for Azure Speech Service
 const languageCodeMap = {

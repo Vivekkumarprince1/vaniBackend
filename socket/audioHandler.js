@@ -23,6 +23,10 @@ const handleAudioTranslation = (io, socket, users) => {
         requestId: requestId || 'none',
         audioDataLength: audio ? audio.length : 0 
       });
+      
+      // ADDED: Debug log for socket IDs
+      console.log('Active socket IDs:', Object.keys(users));
+      console.log('Current socket ID:', socket.id);
   
       // Validate input data
       if (!audio || audio.length < 100) {
@@ -47,6 +51,13 @@ const handleAudioTranslation = (io, socket, users) => {
         });
         return;
       }
+      
+      // ADDED: Debug log for receiver info
+      console.log('Receiver found:', {
+        receiverSocketId,
+        receiverUserId: users[receiverSocketId].userId,
+        isReceiverConnected: io.sockets.sockets.has(receiverSocketId)
+      });
   
       // Check if receiver's audio system is ready
       const receiverSocket = io.sockets.sockets.get(receiverSocketId);
@@ -110,6 +121,9 @@ const handleAudioTranslation = (io, socket, users) => {
           if (header === 'RIFF') {
             audioBase64 = result.audio.toString('base64');
             console.log('Valid audio data prepared for sending, size:', result.audio.length);
+            
+            // ADDED: Debug the first 20 characters of the base64 audio data
+            console.log('Audio data sample:', audioBase64.substring(0, 20) + '...');
           } else {
             console.error('Invalid WAV header in audio data');
           }
@@ -121,7 +135,7 @@ const handleAudioTranslation = (io, socket, users) => {
       }
       
       // Send the translated audio and text to the receiver
-      io.to(receiverSocketId).emit('translatedAudio', {
+      const audioPayload = {
         text: {
           original: result.text.original,
           translated: result.text.translated
@@ -129,7 +143,26 @@ const handleAudioTranslation = (io, socket, users) => {
         audio: audioBase64,
         requestId,
         timestamp: Date.now()
+      };
+      
+      // ADDED: Debug the payload size
+      console.log('Sending translatedAudio event to receiver:', {
+        receiverSocketId,
+        textLength: JSON.stringify(audioPayload.text).length,
+        audioLength: audioBase64 ? audioBase64.length : 0,
+        totalPayloadSize: JSON.stringify(audioPayload).length
       });
+      
+      // Try both direct socket and room-based emission
+      // First try direct socket reference
+      if (receiverSocket) {
+        console.log('Sending directly to receiver socket');
+        receiverSocket.emit('translatedAudio', audioPayload);
+      }
+      
+      // Also try room-based transmission as backup
+      console.log('Sending to receiver via room');
+      io.to(receiverSocketId).emit('translatedAudio', audioPayload);
       
       // Send acknowledgment to sender
       socket.emit('translationComplete', {

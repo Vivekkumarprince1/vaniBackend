@@ -13,6 +13,7 @@ const handleWebRTC = (io, socket) => {
     
     if (!offer || !targetId) {
       console.error('Missing required offer data');
+      socket.emit('callError', { message: 'Missing offer or target ID' });
       return;
     }
 
@@ -30,16 +31,38 @@ const handleWebRTC = (io, socket) => {
     const targetSocket = io.sockets.sockets.get(targetId);
     if (!targetSocket) {
       console.error('Target socket not found:', targetId);
+      
+      // Log all active socket IDs for debugging
+      const activeSocketIds = Array.from(io.sockets.sockets.keys());
+      console.log('Active socket IDs:', activeSocketIds);
+      
       socket.emit('callError', { message: 'User is not available' });
       return;
     }
 
-    console.log('Emitting incomingCall to:', targetId);
-    io.to(targetId).emit('incomingCall', {
+    // Log full details of the event for debugging
+    console.log('Emitting incomingCall to:', targetId, 'with data:', {
+      from: socket.id,
+      type,
+      callerInfo: enrichedCallerInfo 
+    });
+    
+    // Send an acknowledgement to the caller that the offer was sent
+    socket.emit('offerSent', { targetId });
+    
+    // Emit the incoming call event to the target socket
+    // Use a direct reference to the socket to avoid routing issues
+    targetSocket.emit('incomingCall', {
       offer,
       from: socket.id,
       type,
       caller: enrichedCallerInfo
+    });
+    
+    // Add delivery confirmation for debugging
+    targetSocket.once('incomingCallReceived', (data) => {
+      console.log('Target confirmed receipt of incoming call:', data);
+      socket.emit('callDelivered', { targetId });
     });
   });
   
@@ -47,8 +70,24 @@ const handleWebRTC = (io, socket) => {
   socket.on('answer', (data) => {
     const { answer, targetId, receiverInfo } = data;
     
+    if (!answer || !targetId) {
+      console.error('Missing required answer data');
+      socket.emit('callError', { message: 'Missing answer or target ID' });
+      return;
+    }
+
+    // Check if target socket exists
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (!targetSocket) {
+      console.error('Target socket not found for answer:', targetId);
+      socket.emit('callError', { message: 'Call target is no longer available' });
+      return;
+    }
+    
+    console.log('Sending answer from', socket.id, 'to', targetId);
+    
     // Include receiver info in the answer
-    io.to(targetId).emit('answer', {
+    targetSocket.emit('answer', {
       answer,
       from: socket.id,
       receiverInfo: {
@@ -62,7 +101,19 @@ const handleWebRTC = (io, socket) => {
   
   socket.on('iceCandidate', (data) => {
     const { candidate, targetId } = data;
-    io.to(targetId).emit('iceCandidate', {
+    
+    if (!candidate || !targetId) {
+      console.error('Missing required ICE candidate data');
+      return;
+    }
+    
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (!targetSocket) {
+      console.error('Target socket not found for ICE candidate:', targetId);
+      return;
+    }
+    
+    targetSocket.emit('iceCandidate', {
       candidate,
       from: socket.id
     });
@@ -71,7 +122,19 @@ const handleWebRTC = (io, socket) => {
   // New event for call participant information exchange
   socket.on('callParticipantInfo', (data) => {
     const { targetId, participantInfo } = data;
-    io.to(targetId).emit('callParticipantInfo', {
+    
+    if (!targetId) {
+      console.error('Missing target ID for call participant info');
+      return;
+    }
+    
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (!targetSocket) {
+      console.error('Target socket not found for call participant info:', targetId);
+      return;
+    }
+    
+    targetSocket.emit('callParticipantInfo', {
       participantInfo,
       from: socket.id
     });

@@ -19,7 +19,7 @@ if (!SPEECH_KEY || !SPEECH_REGION) {
   console.error('Azure Speech Service credentials not configured!');
 }
 
-// Updated language to voice mapping with more voices
+// Updated language to voice mapping with more Indian languages
 const voiceMap = {
   'en': 'en-US-JennyNeural',
   'hi': 'hi-IN-SwaraNeural',
@@ -58,7 +58,19 @@ const voiceMap = {
   'bg': 'bg-BG-KalinaNeural',
   'fil': 'fil-PH-BlessicaNeural',
   'ca': 'ca-ES-AlbaNeural',
-  'cy': 'cy-GB-NiaNeural'
+  'cy': 'cy-GB-NiaNeural',
+  // Adding more Indian languages
+  'bn': 'bn-IN-TanishaaNeural',   // Bengali
+  'gu': 'gu-IN-DhwaniNeural',     // Gujarati
+  'kn': 'kn-IN-SapnaNeural',      // Kannada
+  'ml': 'ml-IN-SobhanaNeural',    // Malayalam
+  'mr': 'mr-IN-AarohiNeural',     // Marathi
+  'or': 'or-IN-SwaraNeural',      // Odia
+  'pa': 'pa-IN-VaaniNeural',    // Punjabi
+  'sa': 'sa-IN-ShrutiNeural',     // Sanskrit
+  'ur': 'ur-IN-GulNeural'  ,       // Urdu
+  'ta':'ta-IN-PallaviNeural',    // Tamil
+  'te':'te-IN-ShrutiNeural',    // Telugu
 };
 
 /**

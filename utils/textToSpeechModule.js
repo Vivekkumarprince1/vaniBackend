@@ -71,6 +71,18 @@ const voiceMap = {
   'ur': 'ur-IN-GulNeural'  ,       // Urdu
   'ta':'ta-IN-PallaviNeural',    // Tamil
   'te':'te-IN-ShrutiNeural',    // Telugu
+  // Additional Indian languages for the voiceMap
+'as': 'as-IN-DiptiNeural',     // Assamese
+'brx': 'brx-IN-KamalNeural',   // Bodo
+'doi': 'doi-IN-PreetamNeural', // Dogri
+'gom': 'gom-IN-AnamikaNeural', // Konkani (Goan)
+'kok': 'kok-IN-JasmineNeural', // Konkani
+'kas': 'kas-IN-RafikaNeural',  // Kashmiri
+'sd': 'sd-IN-KalpenNeural',    // Sindhi
+'si': 'si-LK-ThiliniNeural',   // Sinhala
+'ne': 'ne-NP-HemkalaNeural',   // Nepali
+'mai': 'mai-IN-ShiwaniNeural', // Maithili
+'mni': 'mni-IN-OinaNeural',    // Manipuri
 };
 
 /**

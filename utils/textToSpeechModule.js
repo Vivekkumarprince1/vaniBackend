@@ -228,7 +228,7 @@ const textToSpeech = async (text, targetLanguage, maxRetries = 3) => {
         // Determine the SSML language code
         const ssmlLangCode = standardizedLanguage.includes('-') ? 
                            standardizedLanguage : 
-                           (standardizedLanguage + '-' + standardizedLanguage.toUpperCase());
+                           (voiceName ? voiceName.split('-').slice(0, 2).join('-') : standardizedLanguage + '-' + standardizedLanguage.toUpperCase());
 
         // Use simpler SSML for better compatibility
         const ssml = `

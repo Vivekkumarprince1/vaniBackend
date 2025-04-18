@@ -26,6 +26,9 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/translator', require('./routes/translator'));
+app.use('/',(req, res) => {
+  res.send('Welcome to the Vani Backend API');
+});
 
 // Connect to database and start server
 connectDB()
